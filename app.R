@@ -1,605 +1,139 @@
-# libraries ----
+# Load the required libraries
 library(shiny)
 library(shinydashboard)
+library(shinyjs)
+library(shinyWidgets)
+library(highcharter)
+library(dplyr)
+library(waiter)
 
-# input data ----
-ref_df = read.csv("https://github.com/bitowaqr/shortfall/raw/main/app/data/ref_df_appended.csv")
-mvh_df = read.csv("https://github.com/bitowaqr/shortfall/raw/main/app/data/mvh_df.csv")
+# Load nordic life tables
+# Denmark
+d_ref_df = read.csv("C:/Github/BMS/data/d_ref_df_appended.csv") # Load Denmark reference data
+d_mvh_df = read.csv("C:/Github/BMS/data/d_mvh_df.csv") # Load Denmark MVH data
 
-# compute QALE ----
-compQale = function(ons_df,
-                    prop_female = 0.5,
-                    start_age = 50,
-                    disc_rate = 0.035,
-                    utils = "cw") {
-  compQaleInternal = function(ons_df,
-                              prop_female = 0.5,
-                              start_age = 50,
-                              disc_rate = 0.035,
-                              utils = "cw") {
-    ons_df = ons_df[ons_df$age >= start_age, ]
-    ons_df = ons_df[order(ons_df$age), ]
-    df_female = ons_df[ons_df$sex == "female", c("age", utils, "lx", "dx", "mx", "ex")]
-    df_male = ons_df[ons_df$sex == "male", c("age", utils, "lx", "dx", "mx", "ex")]
-    
-    df_comp = data.frame(
-      age = df_female$age,
-      utils = (1 - prop_female) * df_male[, utils]  + prop_female * df_female[, utils],
-      lx = (1 - prop_female) * df_male$lx  + prop_female * df_female$lx,
-      dx = (1 - prop_female) * df_male$dx  + prop_female * df_female$dx,
-      mx = (1 - prop_female) * df_male$mx  + prop_female * df_female$mx,
-      ex = (1 - prop_female) * df_male$ex  + prop_female * df_female$ex
-    )
-    
-    # person years in year i
-    df_comp$Lx = NA
-    for (i in 2:nrow(df_comp)) {
-      df_comp$Lx[i - 1] = df_comp$lx[i] + (0.5 * df_comp$dx[i - 1])
-    }
-    df_comp$Lx[nrow(df_comp)] = (df_comp$lx[nrow(df_comp)] - df_comp$dx[nrow(df_comp)]) + (0.5 * df_comp$dx[nrow(df_comp)])
-    
-    # person QALYs in year i
-    df_comp$Yx = df_comp$utils * df_comp$Lx
-    
-    # apply discounting
-    v_disc <- 1 / (1 + disc_rate) ^ (0:(length(df_comp$Yx) - 1))
-    df_comp$Yx = df_comp$Yx * v_disc
-    
-    # remaining person QALYs?
-    df_comp$Nx = NA
-    df_comp$Nx[nrow(df_comp)] = df_comp$Yx[nrow(df_comp)]
-    for (i in nrow(df_comp):2) {
-      df_comp$Nx[i - 1] = df_comp$Yx[i - 1] + df_comp$Nx[i]
-    }
-    
-    # Quality adjusted life expectancy
-    df_comp$Qx = df_comp$Nx / df_comp$lx
-    
-    
-    q_factor = sum(df_comp$Yx) / df_comp$Qx[1]
-    
-    df_comp$qalys_by_year = df_comp$Yx / q_factor
-    df_comp$cumulative_qalys = cumsum(df_comp$qalys_by_year)
-    
-    # cumulative survival function
-    df_comp$S = 1 - df_comp$mx
-    df_comp$S_cumulativ =  cumprod(df_comp$S)
-    df_comp$hrqol = df_comp$utils
-    
-    df_comp = df_comp[, c("age",
-                          "hrqol",
-                          "ex",
-                          "Qx",
-                          "S_cumulativ",
-                          "cumulative_qalys")]
-    
-    return(df_comp)
-    
-  }
-  
-  
-  qale_male = compQaleInternal(
-    ons_df = ons_df,
-    prop_female = 0,
-    start_age = start_age,
-    disc_rate = disc_rate,
-    utils = utils
-  )
-  qale_female = compQaleInternal(
-    ons_df = ons_df,
-    prop_female = 1,
-    start_age = start_age,
-    disc_rate = disc_rate,
-    utils = utils
-  )
-  qale_mix = qale_male * (1 - prop_female) + qale_female * prop_female
-  
-  return(qale_mix)
-  
-}
+# Finland
+f_ref_df = read.csv("C:/Github/BMS/data/f_ref_df_appended.csv") # Load Finland reference data
+f_mvh_df = read.csv("C:/Github/BMS/data/f_mvh_df.csv") # Load Finland MVH data
 
-# ui ----
-ui = dashboardPage(
-  dashboardHeader(title = "Scandinavian Shortfall Calculator",
-                  titleWidth = 350),
+# Denmark
+n_ref_df = read.csv("C:/Github/BMS/data/n_ref_df_appended.csv") # Load Norway reference data
+n_mvh_df = read.csv("C:/Github/BMS/data/n_mvh_df.csv") # Load Norway MVH data
+
+# Finland
+s_ref_df = read.csv("C:/Github/BMS/data/s_ref_df_appended.csv") # Load Sweden reference data
+s_mvh_df = read.csv("C:/Github/BMS/data/s_mvh_df.csv") # Load Sweden MVH data
+
+# Define UI for application
+ui <- dashboardPage(
+  skin = "blue",
+  dashboardHeader(title = "Nordic Shortfall Calculator"), 
   dashboardSidebar(
-    width = 350,
     sidebarMenu(
-      menuItem("Denmark",
-               tabName = "den"),
-      menuItem("Finland",
-               tabName = "fin"),
-      menuItem("Norway",
-               tabName = "nor"),
-      menuItem("Sweden",
-               tabName = "swe")
+      menuItem("Norway", tabName = "norway"),
+      menuItem("Sweden", tabName = "sweden"),
+      menuItem("Denmark", tabName = "denmark"),
+      menuItem("Finland", tabName = "finland")
     )
   ),
-  dashboardBody(width = 10,
-                tabItems(
-                  tabItem(
-                    tabName = "den",
-                    fluidRow(
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "den_start_age",
-                          "Age of the patient population",
-                          min = 1,
-                          max = 99,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "den_sex_mix",
-                          "% female in the patient population",
-                          min = 1,
-                          max = 100,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        selectizeInput(
-                          "den_utils",
-                          "Select scenario",
-                          selected = "dsu_2014",
-                          choices = c(
-                            "Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = "dsu_2014",
-                            "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = "dsu",
-                            "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = "vanHout",
-                            "Alternative C: MVH value set + health state profiles" = "mvh",
-                            "Alternative D: MVH value set + HSE 2012+14" = "tto"
-                          )
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "den_remaining_qalys",
-                          "Remaining QALYs of untreated (discounted)",
-                          value = 10
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "den_disc_rate",
-                          "Discount rate (%)",
-                          value = 1.5,
-                          min = 0,
-                          max = 10
-                        )
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Remaining QALYs", style = 'font-size:28px;color:black;'),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "without the disease: "),
-                        div(style = "display: inline-block;", textOutput("den_qales_healthy_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "with the disease: "),
-                        div(style = "display: inline-block;", textOutput("den_qales_ill_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "absolute shortfall: "),
-                        div(style = "display: inline-block;", textOutput("den_abs_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "proportional shortfall: "),
-                        div(style = "display: inline-block;", textOutput("den_prop_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "QALY weight: "),
-                        div(style = "display: inline-block;", textOutput("den_mltplr_txt"))
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Absolute shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("den_bar")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Proportional shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("den_pie")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative QALYs", style = 'font-size:28px;color:black;'),
-                        plotOutput("den_cumulative_qalys")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("HRQoL by year", style = 'font-size:28px;color:black;'),
-                        plotOutput("den_hrqol")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative survival", style = 'font-size:28px;color:black;'),
-                        plotOutput("den_S_cumulativ")
-                      )
-                    )
-                  ),
-                  tabItem(
-                    tabName = "fin",
-                    fluidRow(
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "fin_start_age",
-                          "Age of the patient population",
-                          min = 1,
-                          max = 99,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "fin_sex_mix",
-                          "% female in the patient population",
-                          min = 1,
-                          max = 100,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        selectInput(
-                          "fin_dropdown",
-                          "Select scenario",
-                          selected = "ref",
-                          choices = c(
-                            "Reference Case" = "ref",
-                            "Alternative A" = "a",
-                            "Alternative B" = "b",
-                            "Alternative C" = "c",
-                            "Alternative D" = "d"
-                          )
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "fin_remaining_qalys",
-                          "Remaining QALYs of untreated (discounted)",
-                          value = 10
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "fin_disc_rate",
-                          "Discount rate (%)",
-                          value = 1.5,
-                          min = 0,
-                          max = 10
-                        )
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Remaining QALYs", style = 'font-size:28px;color:black;'),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "without the disease: "),
-                        div(style = "display: inline-block;", textOutput("fin_qales_healthy_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "with the disease: "),
-                        div(style = "display: inline-block;", textOutput("fin_qales_ill_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "absolute shortfall: "),
-                        div(style = "display: inline-block;", textOutput("fin_abs_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "proportional shortfall: "),
-                        div(style = "display: inline-block;", textOutput("fin_prop_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "QALY weight: "),
-                        div(style = "display: inline-block;", textOutput("fin_mltplr_txt"))
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Absolute shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("fin_bar")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Proportional shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("fin_pie")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative QALYs", style = 'font-size:28px;color:black;'),
-                        plotOutput("fin_cumulative_qalys")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("HRQoL by year", style = 'font-size:28px;color:black;'),
-                        plotOutput("fin_hrqol")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative survival", style = 'font-size:28px;color:black;'),
-                        plotOutput("fin_S_cumulativ")
-                      )
-                    )
-                  ),
-                  tabItem(
-                    tabName = "nor",
-                    fluidRow(
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "nor_start_age",
-                          "Age of the patient population",
-                          min = 1,
-                          max = 99,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "nor_sex_mix",
-                          "% female in the patient population",
-                          min = 1,
-                          max = 100,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        selectInput(
-                          "nor_dropdown",
-                          "Select scenario",
-                          selected = "ref",
-                          choices = c(
-                            "Reference Case" = "ref",
-                            "Alternative A" = "a",
-                            "Alternative B" = "b",
-                            "Alternative C" = "c",
-                            "Alternative D" = "d"
-                          )
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "nor_remaining_qalys",
-                          "Remaining QALYs of untreated (discounted)",
-                          value = 10
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "nor_disc_rate",
-                          "Discount rate (%)",
-                          value = 1.5,
-                          min = 0,
-                          max = 10
-                        )
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Remaining QALYs", style = 'font-size:28px;color:black;'),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "without the disease: "),
-                        div(style = "display: inline-block;", textOutput("nor_qales_healthy_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "with the disease: "),
-                        div(style = "display: inline-block;", textOutput("nor_qales_ill_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "absolute shortfall: "),
-                        div(style = "display: inline-block;", textOutput("nor_abs_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "proportional shortfall: "),
-                        div(style = "display: inline-block;", textOutput("nor_prop_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "QALY weight: "),
-                        div(style = "display: inline-block;", textOutput("nor_mltplr_txt"))
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Absolute shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("nor_bar")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Proportional shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("nor_pie")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative QALYs", style = 'font-size:28px;color:black;'),
-                        plotOutput("nor_cumulative_qalys")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("HRQoL by year", style = 'font-size:28px;color:black;'),
-                        plotOutput("nor_hrqol")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative survival", style = 'font-size:28px;color:black;'),
-                        plotOutput("nor_S_cumulativ")
-                      )
-                    )
-                  ),
-                  tabItem(
-                    tabName = "swe",
-                    fluidRow(
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "swe_start_age",
-                          "Age of the patient population",
-                          min = 1,
-                          max = 99,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 3,
-                        sliderInput(
-                          "swe_sex_mix",
-                          "% female in the patient population",
-                          min = 1,
-                          max = 100,
-                          value = 50
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        selectInput(
-                          "swe_dropdown",
-                          "Select scenario",
-                          selected = "ref",
-                          choices = c(
-                            "Reference Case" = "ref",
-                            "Alternative A" = "a",
-                            "Alternative B" = "b",
-                            "Alternative C" = "c",
-                            "Alternative D" = "d"
-                          )
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "swe_remaining_qalys",
-                          "Remaining QALYs of untreated (discounted)",
-                          value = 10
-                        )
-                      ),
-                      box(
-                        width = 2,
-                        numericInput(
-                          "swe_disc_rate",
-                          "Discount rate (%)",
-                          value = 1.5,
-                          min = 0,
-                          max = 10
-                        )
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Remaining QALYs", style = 'font-size:28px;color:black;'),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "without the disease: "),
-                        div(style = "display: inline-block;", textOutput("swe_qales_healthy_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "with the disease: "),
-                        div(style = "display: inline-block;", textOutput("swe_qales_ill_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "absolute shortfall: "),
-                        div(style = "display: inline-block;", textOutput("swe_abs_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "proportional shortfall: "),
-                        div(style = "display: inline-block;", textOutput("swe_prop_short_txt")),
-                        br(),
-                        br(),
-                        div(style = "display: inline-block;", "QALY weight: "),
-                        div(style = "display: inline-block;", textOutput("swe_mltplr_txt"))
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Absolute shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("swe_bar")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Proportional shortfall", style = 'font-size:28px;color:black;'),
-                        plotOutput("swe_pie")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative QALYs", style = 'font-size:28px;color:black;'),
-                        plotOutput("swe_cumulative_qalys")
-                      )
-                    ),
-                    fluidRow(
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("HRQoL by year", style = 'font-size:28px;color:black;'),
-                        plotOutput("swe_hrqol")
-                      ),
-                      box(
-                        width = 6,
-                        height = 450,
-                        h3("Cumulative survival", style = 'font-size:28px;color:black;'),
-                        plotOutput("swe_S_cumulativ")
-                      )
-                    )
-                  )
-                ))
+  dashboardBody(
+    tabItem(tabName = "norway",
+            fluidRow(
+              column(width = 6,
+                     sliderInput("n_start_age", "Age of the patient population", min = 0, max = 100, value = 0, step = 1),
+                     sliderInput("n_sex_mix", "% female in the patient population", min = 0, max = 100, value = 50, step = 1),
+                     selectInput("n_utils", "Select scenario", 
+                                 choices = list("Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = "n_dsu_2014",
+                                                "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = "n_dsu",
+                                                "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = "n_vanHout",
+                                                "Alternative C: MVH value set + health state profiles" = "n_mvh",
+                                                "Alternative D: MVH value set + HSE 2012+14" = "n_tto"), 
+                                 selected = "n_dsu_2014"),
+                     sliderInput("n_remaining_qalys", "Remaining QALYS", min = 0, max = 49, value = 10, step = 1),
+                     sliderInput("n_disc_rate", "Discount rate", min = 0, max = 10, value = 1.5, step = 0.5)
+              ),
+              column(width = 6,
+                     plotOutput("n_plot1Norway"), 
+                     plotOutput("n_plot2Norway") 
+              )
+            )
+    ),
+    tabItem(tabName = "sweden",
+            fluidRow(
+              column(width = 6,
+                     sliderInput("s_start_age", "Age of the patient population", min = 0, max = 100, value = 0, step = 1),
+                     sliderInput("s_sex_mix", "% female in the patient population", min = 0, max = 100, value = 50, step = 1),
+                     selectInput("s_utils", "Select scenario", 
+                                 choices = list("Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = "s_dsu_2014",
+                                                "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = "s_dsu",
+                                                "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = "s_vanHout",
+                                                "Alternative C: MVH value set + health state profiles" = "s_mvh",
+                                                "Alternative D: MVH value set + HSE 2012+14" = "s_tto"), 
+                                 selected = "s_dsu_2014"),
+                     sliderInput("s_remaining_qalys", "Remaining QALYS", min = 0, max = 49, value = 10, step = 1),
+                     sliderInput("s_disc_rate", "Discount rate", min = 0, max = 10, value = 1.5, step = 0.5)
+              ),
+              column(width = 6,
+                     plotOutput("s_plot1Sweden"), 
+                     plotOutput("s_plot2Sweden") 
+              )
+            )
+    ),
+    tabItem(tabName = "denmark",
+            fluidRow(
+              column(width = 6,
+                     sliderInput("d_start_age", "Age of the patient population", min = 0, max = 100, value = 0, step = 1),
+                     sliderInput("d_sex_mix", "% female in the patient population", min = 0, max = 100, value = 50, step = 1),
+                     selectInput("d_utils", "Select scenario", 
+                                 choices = list("Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = "d_dsu_2014",
+                                                "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = "d_dsu",
+                                                "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = "d_vanHout",
+                                                "Alternative C: MVH value set + health state profiles" = "d_mvh",
+                                                "Alternative D: MVH value set + HSE 2012+14" = "d_tto"), 
+                                 selected = "d_dsu_2014"),
+                     sliderInput("d_remaining_qalys", "Remaining QALYS", min = 0, max = 49, value = 10, step = 1),
+                     sliderInput("d_disc_rate", "Discount rate", min = 0, max = 10, value = 1.5, step = 0.5)
+              ),
+              column(width = 6,
+                     plotOutput("d_plot1Denmark"), 
+                     plotOutput("d_plot2Denmark") 
+              )
+            )
+    ),
+    tabItem(tabName = "finland",
+            fluidRow(
+              column(width = 6,
+                     sliderInput("f_start_age", "Age of the patient population", min = 0, max = 100, value = 0, step = 1),
+                     sliderInput("f_sex_mix", "% female in the patient population", min = 0, max = 100, value = 50, step = 1),
+                     selectInput("f_utils", "Select scenario", 
+                                 choices = list("Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = "f_dsu_2014",
+                                                "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = "f_dsu",
+                                                "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = "f_vanHout",
+                                                "Alternative C: MVH value set + health state profiles" = "f_mvh",
+                                                "Alternative D: MVH value set + HSE 2012+14" = "f_tto"), 
+                                 selected = "f_dsu_2014"),
+                     sliderInput("f_remaining_qalys", "Remaining QALYS", min = 0, max = 49, value = 10, step = 1),
+                     sliderInput("f_disc_rate", "Discount rate", min = 0, max = 10, value = 1.5, step = 0.5)
+              ),
+              column(width = 6,
+                     plotOutput("f_plot1Finland"), 
+                     plotOutput("f_plot2Finland") 
+              )
+            )
+    ),
+    tags$footer(style="position:fixed;bottom:0;width:100%;",
+                tags$p("Developed for BMS, Nordics",
+                       style="text-align:right;padding-right:10px;"),
+                tags$p("Developed by Mohammad Sayeef Alam",
+                       style="text-align:right;padding-right:10px;")
+    )
+  )
 )
 
-# server ----
-server = function(input, output, session) {
-  
+# Define server logic
+server <- function(input, output, session) {
+  # Add your server-side reactive functions here
 }
 
-# app compiler ----
-shinyApp(ui, server)
+# Run the application 
+shinyApp(ui = ui, server = server)
