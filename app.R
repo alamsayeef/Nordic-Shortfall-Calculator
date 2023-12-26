@@ -92,84 +92,60 @@ ui <- page_navbar(
   nav_spacer(),
   nav_panel(
     "Denmark",
-    h1("Remaining QALYs"),
-    fluidRow(
-      column(width = 2, card(id = "d_card1", tags$h5("without the disease:"), width = "150px", height = "150px")),
-      column(width = 2, card(id = "d_card2", tags$h5("with the disease:"), width = "150px", height = "150px")),
-      column(width = 2, card(id = "d_card3", tags$h5("absolute shortfall:"), width = "150px", height = "150px")),
-      column(width = 2, card(id = "d_card4", tags$h5("proportional shortfall:"), width = "150px", height = "150px")),
-      column(width = 2, card(id = "d_card5", tags$h5("QALY weight:"), width = "150px", height = "150px"))
-    ),
-    fluidRow(
-      column(3, plotOutput("plot1")),
-      column(3, plotOutput("plot2")),
-      column(3, plotOutput("plot3"))
+    h1("Remaining QALYs for Denmark"),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("without the disease:")),
+      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("d_with_disease_card"))),
+      card(fill = FALSE, card_header("absolute shortfall:")),
+      card(fill = FALSE, card_header("proportional shortfall:")),
+      card(fill = FALSE, card_header("QALY weight:"))
     )
   ),
   nav_panel(
     "Finland",
-    h1("Remaining QALYs"),
-    fluidRow(
-      column(width = 2, card(id = "f_card1", tags$h5("without the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "f_card2", tags$h5("with the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "f_card3", tags$h5("absolute shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "f_card4", tags$h5("proportional shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "f_card5", tags$h5("QALY weight:"), weight = "150px", height = "150px"))
-    ),
-    fluidRow(
-      column(4, plotOutput("plot1")),
-      column(4, plotOutput("plot2")),
-      column(4, plotOutput("plot3"))
+    h1("Remaining QALYs for Finland"),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("without the disease:")),
+      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("f_with_disease_card"))),
+      card(fill = FALSE, card_header("absolute shortfall:")),
+      card(fill = FALSE, card_header("proportional shortfall:")),
+      card(fill = FALSE, card_header("QALY weight:"))
     )
   ),
   nav_panel(
     "Norway",
-    h1("Remaining QALYs"),
-    fluidRow(
-      column(width = 2, card(id = "n_card1", tags$h5("without the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "n_card2", tags$h5("with the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "n_card3", tags$h5("absolute shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "n_card4", tags$h5("proportional shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "n_card5", tags$h5("QALY weight:"), weight = "150px", height = "150px"))
-    ),
-    fluidRow(
-      column(4, plotOutput("plot1")),
-      column(4, plotOutput("plot2")),
-      column(4, plotOutput("plot3"))
+    h1("Remaining QALYs for Norway"),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("without the disease:")),
+      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("n_with_disease_card"))),
+      card(fill = FALSE, card_header("absolute shortfall:")),
+      card(fill = FALSE, card_header("proportional shortfall:")),
+      card(fill = FALSE, card_header("QALY weight:"))
     )
   ),
   nav_panel(
     "Sweden",
-    h1("Remaining QALYs"),
-    fluidRow(
-      column(width = 2, card(id = "s_card1", tags$h5("without the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "s_card2", tags$h5("with the disease:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "s_card3", tags$h5("absolute shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "s_card4", tags$h5("proportional shortfall:"), weight = "150px", height = "150px")),
-      column(width = 2, card(id = "s_card5", tags$h5("QALY weight:"), weight = "150px", height = "150px"))
-    ),
-    fluidRow(
-      column(4, plotOutput("plot1")),
-      column(4, plotOutput("plot2")),
-      column(4, plotOutput("plot3"))
+    h1("Remaining QALYs for Sweden"),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("without the disease:")),
+      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("s_with_disease_card"))),
+      card(fill = FALSE, card_header("absolute shortfall:")),
+      card(fill = FALSE, card_header("proportional shortfall:")),
+      card(fill = FALSE, card_header("QALY weight:"))
     )
   )
 )
 
 server <- function(input, output, session) {
-  observeEvent(list(input$d_remaining_qalys, input$f_remaining_qalys, input$n_remaining_qalys, input$s_remaining_qalys), {
-    card(session, id = "d_card2", title = tags$h5("with the disease:"), content = paste0("Remaining QALYs: ", input$d_remaining_qalys))
-    updateCard(session, id = "f_card2", title = tags$h5("with the disease:"), content = paste0("Remaining QALYs: ", input$f_remaining_qalys))
-    updateCard(session, id = "n_card2", title = tags$h5("with the disease:"), content = paste0("Remaining QALYs: ", input$n_remaining_qalys))
-    updateCard(session, id = "s_card2", title = tags$h5("with the disease:"), content = paste0("Remaining QALYs: ", input$s_remaining_qalys))
-  })
+  output$d_with_disease_card = renderText({input$d_remaining_qalys})
+  output$f_with_disease_card = renderText({input$f_remaining_qalys})
+  output$n_with_disease_card = renderText({input$n_remaining_qalys})
+  output$s_with_disease_card = renderText({input$s_remaining_qalys})
   
-  # Add JavaScript to expand the Denmark accordion panel on tab click
-  observe({
-    if (!is.null(input$tabName) && input$tabName == "Denmark") {
-      session$sendCustomMessage(type = "expandAccordionPanel", payload = "d_accordion_panel")
-    }
-  })
 }
 
 shinyApp(ui, server)
