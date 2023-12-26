@@ -100,6 +100,14 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("absolute shortfall:")),
       card(fill = FALSE, card_header("proportional shortfall:")),
       card(fill = FALSE, card_header("QALY weight:"))
+    ),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("Absolute shortfall")),
+      card(fill = FALSE, card_header("Proportional shortfall")),
+      card(fill = FALSE, card_header("Cummulative QALYs")),
+      card(fill = FALSE, card_header("HRQoL by year")),
+      card(fill = FALSE, card_header("Cummulative Survival"))
     )
   ),
   nav_panel(
@@ -112,6 +120,14 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("absolute shortfall:")),
       card(fill = FALSE, card_header("proportional shortfall:")),
       card(fill = FALSE, card_header("QALY weight:"))
+    ),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("Absolute shortfall")),
+      card(fill = FALSE, card_header("Proportional shortfall")),
+      card(fill = FALSE, card_header("Cummulative QALYs")),
+      card(fill = FALSE, card_header("HRQoL by year")),
+      card(fill = FALSE, card_header("Cummulative Survival"))
     )
   ),
   nav_panel(
@@ -124,6 +140,14 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("absolute shortfall:")),
       card(fill = FALSE, card_header("proportional shortfall:")),
       card(fill = FALSE, card_header("QALY weight:"))
+    ),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("Absolute shortfall")),
+      card(fill = FALSE, card_header("Proportional shortfall")),
+      card(fill = FALSE, card_header("Cummulative QALYs")),
+      card(fill = FALSE, card_header("HRQoL by year")),
+      card(fill = FALSE, card_header("Cummulative Survival"))
     )
   ),
   nav_panel(
@@ -136,6 +160,14 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("absolute shortfall:")),
       card(fill = FALSE, card_header("proportional shortfall:")),
       card(fill = FALSE, card_header("QALY weight:"))
+    ),
+    layout_column_wrap(
+      width = 1/5,
+      card(fill = FALSE, card_header("Absolute shortfall")),
+      card(fill = FALSE, card_header("Proportional shortfall")),
+      card(fill = FALSE, card_header("Cummulative QALYs")),
+      card(fill = FALSE, card_header("HRQoL by year")),
+      card(fill = FALSE, card_header("Cummulative Survival"))
     )
   )
 )
