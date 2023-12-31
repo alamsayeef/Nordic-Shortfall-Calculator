@@ -97,7 +97,7 @@ sidebar_acc = accordion(open = F,
 # UI ----
 ui <- page_navbar(
   theme = bs_theme(preset = "shiny",
-                   "primary" = "#EA80FC"),
+                   "primary" = "#0675DD"),
   lang = "en",
   title = "Nordic Shortfall Calculator",
   sidebar = sidebar(HTML('<p style="font-weight:bold;">Input for</p>'), width = 300, sidebar_acc),
