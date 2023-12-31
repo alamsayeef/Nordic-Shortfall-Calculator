@@ -5,6 +5,7 @@ library(dplyr)
 library(lubridate)
 library(plotly)
 library(rlang)
+library(highcharter)
 
 # set directory ----
 # Get the directory of the currently running app
@@ -87,16 +88,16 @@ create_accordion_panel = function(country, prefix, selected = FALSE) {
 }
 
 sidebar_acc = accordion(open = F,
-  create_accordion_panel("Denmark", "d"),
-  create_accordion_panel("Finland", "f"),
-  create_accordion_panel("Norway", "n"),
-  create_accordion_panel("Sweden", "s")
+                        create_accordion_panel("Denmark", "d"),
+                        create_accordion_panel("Finland", "f"),
+                        create_accordion_panel("Norway", "n"),
+                        create_accordion_panel("Sweden", "s")
 )
 
 # UI ----
 ui <- page_navbar(
   theme = bs_theme(preset = "shiny",
-                   "primary" = "#0675DD"),
+                   "primary" = "#EA80FC"),
   lang = "en",
   title = "Nordic Shortfall Calculator",
   sidebar = sidebar(HTML('<p style="font-weight:bold;">Input for</p>'), width = 300, sidebar_acc),
@@ -107,19 +108,19 @@ ui <- page_navbar(
     h1("Remaining QALYs for Denmark"),
     layout_column_wrap(
       width = 1/5,
-      card(fill = FALSE, card_header("without the disease:"), card_body(shiny::uiOutput("d_qales_healthy_txt"))),
-      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("d_qales_ill_txt"))),
-      card(fill = FALSE, card_header("absolute shortfall:"), card_body(shiny::uiOutput("d_abs_short_txt"))),
-      card(fill = FALSE, card_header("proportional shortfall:"), card_body(shiny::uiOutput("d_prop_short_txt"))),
-      card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("d_mltplr_txt")))
+      card(fill = FALSE, card_header("without the disease:"), card_body(uiOutput("d_qales_healthy_txt"))),
+      card(fill = FALSE, card_header("with the disease:"), card_body(uiOutput("d_qales_ill_txt"))),
+      card(fill = FALSE, card_header("absolute shortfall:"), card_body(uiOutput("d_abs_short_txt"))),
+      card(fill = FALSE, card_header("proportional shortfall:"), card_body(uiOutput("d_prop_short_txt"))),
+      card(fill = FALSE, card_header("QALY weight:"), card_body(uiOutput("d_mltplr_txt")))
     ),
     layout_column_wrap(
       width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall")),
-      card(fill = FALSE, card_header("Proportional shortfall")),
-      card(fill = FALSE, card_header("Cummulative QALYs")),
-      card(fill = FALSE, card_header("HRQoL by year")),
-      card(fill = FALSE, card_header("Cummulative Survival"))
+      card(fill = FALSE, card_header("Absolute shortfall"), card_body(highchartOutput("d_hc_as"))),
+      card(fill = FALSE, card_header("Proportional shortfall"), card_body(shiny::uiOutput("d_hc_ps"))),
+      card(fill = FALSE, card_header("Cummulative QALYs"), card_body(shiny::uiOutput("d_hc_cq"))),
+      card(fill = FALSE, card_header("HRQoL by year"), card_body(shiny::uiOutput("d_hc_hrqol"))),
+      card(fill = FALSE, card_header("Cummulative Survival"), card_body(shiny::uiOutput("d_hc_cs")))
     )
   ),
   # Finland cards ----
@@ -178,7 +179,7 @@ ui <- page_navbar(
     ),
     layout_column_wrap(
       width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall")),
+      card(fill = FALSE, card_header("Absolute shortfall"), card_body(shiny::uiOutput("s_as_high_chart"))),
       card(fill = FALSE, card_header("Proportional shortfall")),
       card(fill = FALSE, card_header("Cummulative QALYs")),
       card(fill = FALSE, card_header("HRQoL by year")),
@@ -282,36 +283,95 @@ server <- function(input, output, session) {
     )
   })
   
+  highchart_d_as = reactive({
+    if(d_dat$shortfall_abs < 0){
+      p_error = highchart() %>%
+        hc_title(
+          text = "Error: QALYs must be lower with the disease.",
+          align = "center",
+          x=-10,
+          verticalAlign = 'middle',
+          floating = "true",
+          style = list(
+            fontSize = "16px",
+            color = "#7cb5ec"
+          )
+        )
+      return(p_error)
+    }
+    else{
+      short_fall = data.frame(
+        name = c("QALYs with disease","Absolute shortfall","QALYs without disease"),
+        value = c(input$d_remaining_qalys,d_dat$shortfall_abs, max(d_dat$res$Qx[1])),
+        color = c("#7cb5ec","#6d757d","#3e6386"),
+        a = c(F,F,T)
+      )
+      
+      shortfall_str = paste0(round(d_dat$shortfall_abs,2))
+      shortfall_str = paste0("Absolute QALY shortfall:<b>",shortfall_str,"</b>")
+      
+      p1 = highchart() %>%
+        hc_add_series(
+          data = short_fall, "waterfall",
+          pointPadding = "0",
+          hcaes(
+            name = name,
+            y = value, isSum=a,
+            color = color
+          ),
+          name = "QALYs"
+        ) %>%
+        #hc_title(text = shortfall_str, align = "left",x=40,y=20,  verticalAlign = 'top', floating = "true", style = list(fontSize = "16px")) %>%
+        hc_chart(
+          style = list(
+            fontFamily = "Inter"
+          )
+        ) %>%
+        hc_tooltip(
+          valueDecimals = 2
+        ) %>%
+        hc_xAxis(
+          categories = short_fall$name
+          
+        )%>%
+        hc_boost(enabled = FALSE)#%>%
+       #hc_colors(c("red","#7cb5ec","red"))
+      
+      return(p1)
+    }
+    
+  })
+  
   # reactive values for Finland ----
   f_dat = reactiveValues()
-
+  
   observe({
-
+    
     if(input$f_utils == "f_mvh"){
       util_df = f_mvh_df
       utils = "tto"
     }
-
+    
     if(input$f_utils == "f_vanHout" | input$f_utils== ""){
       util_df = f_ref_df
       utils = "cw"
     }
-
+    
     if(input$f_utils == "f_tto" | input$f_utils== ""){
       util_df = f_ref_df
       utils = "tto"
     }
-
+    
     if(input$f_utils == "f_dsu" ){
       util_df = f_ref_df
       utils = "co"
     }
-
+    
     if(input$f_utils == "f_dsu_2014" ){
       util_df = f_ref_df
       utils = "dsu_2014"
     }
-
+    
     f_dat$res = compQale(
       ons_df = util_df,
       prop_female = input$f_sex_mix/100,
@@ -319,11 +379,11 @@ server <- function(input, output, session) {
       disc_rate = input$f_disc_rate/100,
       utils = utils
     )
-
+    
     f_dat$shortfall_abs = f_dat$res$Qx[1] - input$f_remaining_qalys
-
+    
     f_dat$shortfall_prop = f_dat$shortfall_abs / f_dat$res$Qx[1]
-
+    
     f_dat$q_weight = ifelse(
       f_dat$shortfall_prop >= 0.95 | f_dat$shortfall_abs >= 18,
       1.7,
@@ -335,34 +395,34 @@ server <- function(input, output, session) {
   
   # reactive values for Norway ----
   n_dat = reactiveValues()
-
+  
   observe({
-
+    
     if(input$n_utils == "n_mvh"){
       util_df = n_mvh_df
       utils = "tto"
     }
-
+    
     if(input$n_utils == "n_vanHout" | input$n_utils== ""){
       util_df = n_ref_df
       utils = "cw"
     }
-
+    
     if(input$n_utils == "n_tto" | input$n_utils== ""){
       util_df = n_ref_df
       utils = "tto"
     }
-
+    
     if(input$n_utils == "n_dsu" ){
       util_df = n_ref_df
       utils = "co"
     }
-
+    
     if(input$n_utils == "n_dsu_2014" ){
       util_df = n_ref_df
       utils = "dsu_2014"
     }
-
+    
     n_dat$res = compQale(
       ons_df = util_df,
       prop_female = input$n_sex_mix/100,
@@ -370,11 +430,11 @@ server <- function(input, output, session) {
       disc_rate = input$n_disc_rate/100,
       utils = utils
     )
-
+    
     n_dat$shortfall_abs = n_dat$res$Qx[1] - input$n_remaining_qalys
-
+    
     n_dat$shortfall_prop = n_dat$shortfall_abs / n_dat$res$Qx[1]
-
+    
     n_dat$q_weight = ifelse(
       n_dat$shortfall_prop >= 0.95 | n_dat$shortfall_abs >= 18,
       1.7,
@@ -386,35 +446,35 @@ server <- function(input, output, session) {
   
   # reactive values for Sweden ----
   s_dat = reactiveValues()
-
+  
   observe({
-
+    
     if(input$s_utils == "s_mvh"){
       util_df = s_mvh_df
       utils = "tto"
     }
-
+    
     if(input$s_utils == "s_vanHout" | input$s_utils== ""){
       util_df = s_ref_df
       utils = "cw"
     }
-
+    
     if(input$s_utils == "s_tto" | input$s_utils== ""){
       util_df = s_ref_df
       utils = "tto"
     }
-
+    
     if(input$s_utils == "s_dsu" ){
       util_df = s_ref_df
       utils = "co"
     }
-
+    
     if(input$s_utils == "s_dsu_2014" ){
       util_df = s_ref_df
       utils = "dsu_2014"
     }
-
-
+    
+    
     s_dat$res = compQale(
       ons_df = util_df,
       prop_female = input$s_sex_mix/100,
@@ -422,12 +482,12 @@ server <- function(input, output, session) {
       disc_rate = input$s_disc_rate/100,
       utils = utils
     )
-
+    
     s_dat$shortfall_abs = s_dat$res$Qx[1] - input$s_remaining_qalys
-
+    
     s_dat$shortfall_prop = s_dat$shortfall_abs / s_dat$res$Qx[1]
-
-
+    
+    
     s_dat$q_weight = ifelse(
       s_dat$shortfall_prop >= 0.95 | s_dat$shortfall_abs >= 18,
       1.7,
@@ -437,45 +497,47 @@ server <- function(input, output, session) {
     )
   })
   
-  # country wise output card 1 ----
+  # numeric outputs ----
+  # country wise output card 1
   output$d_qales_healthy_txt = renderText({fRound(d_dat$res$Qx[1],2)})
   output$f_qales_healthy_txt = renderText({fRound(f_dat$res$Qx[1],2)})
   output$n_qales_healthy_txt = renderText({fRound(n_dat$res$Qx[1],2)})
   output$s_qales_healthy_txt = renderText({fRound(s_dat$res$Qx[1],2)})
   
-  # country wise output card 2 ----
+  # country wise output card 2
   output$d_qales_ill_txt = renderText({fRound(input$d_remaining_qalys)})
   output$f_qales_ill_txt = renderText({fRound(input$f_remaining_qalys)})
   output$n_qales_ill_txt = renderText({fRound(input$n_remaining_qalys)})
   output$s_qales_ill_txt = renderText({fRound(input$s_remaining_qalys)})
   
-  # country wise output card 3 ----
+  # country wise output card 3
   output$d_abs_short_txt = renderText({fRound(d_dat$shortfall_abs,2)})
   output$f_abs_short_txt = renderText({fRound(f_dat$shortfall_abs,2)})
   output$n_abs_short_txt = renderText({fRound(n_dat$shortfall_abs,2)})
   output$s_abs_short_txt = renderText({fRound(s_dat$shortfall_abs,2)})
   
-  # country wise output card 4 ----
+  # country wise output card 4
   output$d_prop_short_txt = renderText({paste0(fRound(d_dat$shortfall_prop*100,2),"%")})
   output$f_prop_short_txt = renderText({paste0(fRound(f_dat$shortfall_prop*100,2),"%")})
   output$n_prop_short_txt = renderText({paste0(fRound(n_dat$shortfall_prop*100,2),"%")})
   output$s_prop_short_txt = renderText({paste0(fRound(s_dat$shortfall_prop*100,2),"%")})
   
-  # country wise output card 5 ----
+  # country wise output card 5
   output$d_mltplr_txt = renderText({paste0("x ",d_dat$q_weight)})
   output$f_mltplr_txt = renderText({paste0("x ",f_dat$q_weight)})
   output$n_mltplr_txt = renderText({paste0("x ",n_dat$q_weight)})
   output$s_mltplr_txt = renderText({paste0("x ",s_dat$q_weight)})
   
-  # country wise output card 6 ----
+  # highcharts ----
+  # country wise output card 6
+  output$d_hc_as = renderHighchart({highchart_d_as()})
+  # country wise output card 7
   
-  # country wise output card 7 ----
+  # country wise output card 8
   
-  # country wise output card 8 ----
+  # country wise output card 9
   
-  # country wise output card 9 ----
-  
-  # country wise output card 10 ----
+  # country wise output card 10
   
   
 }
