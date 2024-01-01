@@ -94,6 +94,87 @@ sidebar_acc = accordion(open = F,
                         create_accordion_panel("Sweden", "s")
 )
 
+# Function to create Highchart
+create_highchart <- function(plot_df, title, ytitle, y_max, color = "#7cb5ec") {
+  highchart(
+    hc_opts = list(),
+    theme = getOption("highcharter.theme"),
+    type = "chart",
+    width = NULL,
+    height = NULL,
+    elementId = NULL,
+    google_fonts = getOption("highcharter.google_fonts")
+  ) %>%
+    hc_add_series(
+      plot_df, type = "area",
+      name = "Shortfall", color = color,
+      hcaes(x = "age", y = "var"),
+      tooltip = list(enabled = FALSE),
+      fast = TRUE
+    ) %>%
+    hc_title(
+      text = title,
+      y = 60, x = -50,
+      style = list(fontSize = "16px")
+    ) %>%
+    hc_plotOptions(
+      line = list(
+        marker = list(
+          enabled = FALSE
+        )
+      ),
+      series = list(
+        tooltip = list(
+          enabled = TRUE,
+          followPointer = TRUE,
+          fillColor = "transparent"
+        )
+      ),
+      area = list(
+        states = list(
+          hover = list(
+            enabled = TRUE
+          )
+        ),
+        marker = list(
+          enabled = FALSE,
+          fillColor = "blue",
+          width = 1,
+          height = 1,
+          enabledThreshold = 10,
+          radius = 1
+        )
+      )
+    ) %>%
+    hc_xAxis(
+      title = list(text = "Age"),
+      gridLineColor = 'lightgray',
+      gridLineWidth = 1,
+      gridLineDashStyle = "Dot",
+      tickLength = 10,
+      tickWidth = 2,
+      tickmarkPlacement = 'between'
+    ) %>%
+    hc_yAxis(
+      title = list(text = ytitle),
+      max = y_max
+    ) %>%
+    hc_tooltip(
+      enabled = TRUE,
+      valueDecimals = 2,
+      pointFormat = '{point.y} ',
+      valueSuffix = ' '
+    ) %>%
+    hc_chart(
+      style = list(
+        fontFamily = "Inter"
+      )
+    ) %>%
+    hc_legend(
+      enabled = FALSE
+    )
+}
+
 # UI ----
 ui <- page_navbar(
   theme = bs_theme(preset = "shiny",
@@ -315,46 +396,44 @@ server <- function(input, output, session) {
     )
   })
   
-  # absolute shortfall highchart ----
-  highchart_d_as = reactive({
-    if(d_dat$shortfall_abs < 0){
-      p_error = highchart() %>%
+  # absolute shortfall highchart
+  highchart_d_as <- reactive({
+    if (d_dat$shortfall_abs < 0) {
+      p_error <- highchart() %>%
         hc_title(
           text = "Error: QALYs must be lower with the disease.",
           align = "center",
-          x=-10,
+          x = -10,
           verticalAlign = 'middle',
-          floating = "true",
+          floating = TRUE,
           style = list(
             fontSize = "16px",
             color = "#7cb5ec"
           )
         )
       return(p_error)
-    }
-    else{
-      short_fall = data.frame(
-        name = c("QALYs with disease","Absolute shortfall","QALYs without disease"),
-        value = c(input$d_remaining_qalys,d_dat$shortfall_abs, max(d_dat$res$Qx[1])),
-        color = c("#7cb5ec","#6d757d","#3e6386"),
-        a = c(F,F,T)
+    } else {
+      short_fall <- data.frame(
+        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
+        value = c(input$d_remaining_qalys, d_dat$shortfall_abs, max(d_dat$res$Qx[1])),
+        color = c("#7cb5ec", "#6d757d", "#3e6386"),
+        a = c(FALSE, FALSE, TRUE)
       )
       
-      shortfall_str = paste0(round(d_dat$shortfall_abs,2))
-      shortfall_str = paste0("Absolute QALY shortfall:<b>",shortfall_str,"</b>")
+      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(d_dat$shortfall_abs, 2), "</b>")
       
-      p1 = highchart() %>%
+      p1 <- highchart() %>%
         hc_add_series(
           data = short_fall, "waterfall",
           pointPadding = "0",
           hcaes(
             name = name,
-            y = value, isSum=a,
+            y = value,
+            isSum = a,
             color = color
           ),
           name = "QALYs"
         ) %>%
-        #hc_title(text = shortfall_str, align = "left",x=40,y=20,  verticalAlign = 'top', floating = "true", style = list(fontSize = "16px")) %>%
         hc_chart(
           style = list(
             fontFamily = "Inter"
@@ -365,345 +444,101 @@ server <- function(input, output, session) {
         ) %>%
         hc_xAxis(
           categories = short_fall$name
-          
-        )%>%
-        hc_boost(enabled = FALSE)#%>%
-       #hc_colors(c("red","#7cb5ec","red"))
+        ) %>%
+        hc_boost(enabled = FALSE)
       
       return(p1)
     }
-    
   })
   
-  # proportional shortfall highchart ----
-  highchart_d_ps = reactive({
-    short_fall = data.frame(
+  # proportional shortfall highchart
+  highchart_d_ps <- reactive({
+    short_fall <- data.frame(
       type = c("With disease", "% Shortfall"),
-      percent = c(100 - d_dat$shortfall_prop*100, d_dat$shortfall_prop*100),
-      col = c("green","gray")
+      percent = c(100 - d_dat$shortfall_prop * 100, d_dat$shortfall_prop * 100),
+      col = c("green", "gray")
     )
     
-    shortfall_str = paste0(round(d_dat$shortfall_prop*100,1))
-    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
+    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(d_dat$shortfall_prop * 100, 1), "%")
     
-    p1 = highchart() %>%
-      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
-      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
-      hc_chart(
-        style = list(
-          fontFamily = "Inter"
-        )
-      ) %>%
-      hc_tooltip(
-        valueDecimals = 1,
-        valueSuffix = '%'
-      ) %>%
-      hc_colors(c("#7cb5ec","gray"))
+    p1 <- create_highchart(
+      plot_df = short_fall,
+      title = shortfall_str,
+      ytitle = "QALE",
+      y_max = NULL,
+      color = c("#7cb5ec", "gray")
+    )
     
     return(p1)
   })
   
-  # cummulative QALY highchart ----
-  highchart_d_cq = reactive({
-    disc_str = input$d_disc_rate > 0
-    y_max = max(d_dat$res$Qx[1])
-  title = round(max(d_dat$res$Qx[1]),2)
-  title = paste0("QALYs without the disease: <b>",title,"</b>",ifelse(disc_str,"(discounted)",""))
-  ytitle = "Cumulative QALYs"
-
-  plot_df = data.frame(
-    age = d_dat$res$age,
-    var = d_dat$res[,6]
-  )
-
-  highchart(
-    hc_opts = list(),
-    theme = getOption("highcharter.theme"),
-    type = "chart",
-    width = NULL,
-    height = NULL,
-    elementId = NULL,
-    google_fonts = getOption("highcharter.google_fonts")
-  ) %>%
-    hc_add_series(
-      plot_df, type = "area",
-      name = "Shortfall", color = "#7cb5ec",
-      hcaes(x = "age", y= "var"),
-      tooltip = list(enabled = FALSE),
-      fast = T) %>%
-
-    hc_title(
-      text = title,
-      y = 60, x=-50,
-
-      style = list(
-        fontSize = "16px"
-      )
-    ) %>%
-
-    hc_plotOptions(
-      line = list(
-        marker = list(
-          enabled = "false",
-          fillColor = "transparent",
-          width = 0,
-          height = 0,
-          enabledThreshold = 99,
-          radius = 1
-        )
-      ),
-      series = list(
-        tooltip = list(
-          enabled = TRUE,
-          followPointer = "true",
-          fillColor = "transparent"
-        )
-      ),
-      area = list(
-        states = list(
-          hover = list(
-            enabled = TRUE
-          )
-        ),
-        marker = list(
-          enabled = FALSE,
-          fillColor = "blue",
-          width = 1,
-          height = 1,
-          enabledThreshold = 10,
-          radius = 1
-        )
-      )
-    ) %>%
-    hc_xAxis(
-      title = list(text = "Age"),
-      gridLineColor= 'lightgray',
-      gridLineWidth= 1,
-      gridLineDashStyle = "Dot",
-      tickLength= 10,
-      tickWidth= 2,
-      tickmarkPlacement= 'between'
-    ) %>%
-    hc_yAxis(
-      title = list(text = ytitle),
-      max = y_max
-    ) %>%
-    hc_tooltip(
-      enabled = TRUE,
-      valueDecimals = 2,
-      pointFormat = '{point.y} ',
-      valueSuffix = ' '
-    ) %>%
-    hc_chart(
-      style = list(
-        fontFamily = "Inter"
-      )
-    ) %>%
-    hc_legend(
-      enabled = F
+  # cumulative QALY highchart
+  highchart_d_cq <- reactive({
+    disc_str <- input$d_disc_rate > 0
+    y_max <- max(d_dat$res$Qx[1])
+    title <- paste0("QALYs without the disease: <b>", round(max(d_dat$res$Qx[1]), 2), "</b>", ifelse(disc_str, "(discounted)", ""))
+    ytitle <- "Cumulative QALYs"
+    
+    plot_df <- data.frame(
+      age = d_dat$res$age,
+      var = d_dat$res[, 6]
     )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
   })
   
-  # HRQoL highchart ----
-  highchart_d_hrqol = reactive({
-    disc_str = input$d_disc_rate > 0
-    y_max = max(d_dat$res$Qx[1])
-    title = paste0("HRQoL over the lifecourse", ifelse(disc_str,"(undiscounted)",""))
-  ytitle = "EQ-5D score"
-  y_max = 1
-  
-  plot_df = data.frame(
-    age = d_dat$res$age,
-    var = d_dat$res[,2]
-  )
-  
-  highchart(
-    hc_opts = list(),
-    theme = getOption("highcharter.theme"),
-    type = "chart",
-    width = NULL,
-    height = NULL,
-    elementId = NULL,
-    google_fonts = getOption("highcharter.google_fonts")
-  ) %>%
-    hc_add_series(
-      plot_df, type = "area",
-      name = "Shortfall", color = "#7cb5ec",
-      hcaes(x = "age", y= "var"),
-      tooltip = list(enabled = FALSE),
-      fast = T) %>%
+  # HRQoL highchart
+  highchart_d_hrqol <- reactive({
+    disc_str <- input$d_disc_rate > 0
+    y_max <- max(d_dat$res$Qx[1])
+    title <- paste0("HRQoL over the lifecourse", ifelse(disc_str, "(undiscounted)", ""))
+    ytitle <- "EQ-5D score"
+    y_max <- 1
     
-    hc_title(
-      text = title,
-      y = 60, x=-50,
-      
-      style = list(
-        fontSize = "16px"
-      )
-    ) %>%
-    
-    
-    hc_plotOptions(
-      line = list(
-        marker = list(
-          enabled = "false",
-          fillColor = "transparent",
-          width = 0,
-          height = 0,
-          enabledThreshold = 99,
-          radius = 1
-        )
-      ),
-      series = list(
-        tooltip = list(
-          enabled = TRUE,
-          followPointer = "true",
-          fillColor = "transparent"
-        )
-      ),
-      area = list(
-        states = list(
-          hover = list(
-            enabled = TRUE
-          )
-        ),
-        marker = list(
-          enabled = FALSE,
-          fillColor = "blue",
-          width = 1,
-          height = 1,
-          enabledThreshold = 10,
-          radius = 1
-        )
-      )
-    ) %>%
-    hc_xAxis(
-      title = list(text = "Age"),
-      gridLineColor= 'lightgray',
-      gridLineWidth= 1,
-      gridLineDashStyle = "Dot",
-      tickLength= 10,
-      tickWidth= 2,
-      tickmarkPlacement= 'between'
-    ) %>%
-    hc_yAxis(
-      title = list(text = ytitle),
-      max = y_max
-    ) %>%
-    hc_tooltip(
-      enabled = TRUE,
-      valueDecimals = 2,
-      pointFormat = '{point.y} ',
-      valueSuffix = ' '
-    ) %>%
-    hc_chart(
-      style = list(
-        fontFamily = "Inter"
-      )
-    ) %>%
-    hc_legend(
-      enabled = F
+    plot_df <- data.frame(
+      age = d_dat$res$age,
+      var = d_dat$res[, 2]
     )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
   })
   
-  # cummulative survival highchart ----
-  highchart_d_cs = reactive({
-    title = paste0("Cumulative survival")
-  ytitle = "S(t)"
-  y_max = 1
-  
-  plot_df = data.frame(
-    age = d_dat$res$age,
-    var = d_dat$res[,5]
-  )
-  
-  highchart(
-    hc_opts = list(),
-    theme = getOption("highcharter.theme"),
-    type = "chart",
-    width = NULL,
-    height = NULL,
-    elementId = NULL,
-    google_fonts = getOption("highcharter.google_fonts")
-  ) %>%
-    hc_add_series(
-      plot_df, type = "area",
-      name = "Shortfall", color = "#7cb5ec",
-      hcaes(x = "age", y= "var"),
-      tooltip = list(enabled = FALSE),
-      fast = T) %>%
+  # cumulative survival highchart
+  highchart_d_cs <- reactive({
+    title <- paste0("Cumulative survival")
+    ytitle <- "S(t)"
+    y_max <- 1
     
-    hc_title(
-      text = title,
-      y = 60, x=-50,
-      
-      style = list(
-        fontSize = "16px"
-      )
-    ) %>%
-    
-    
-    hc_plotOptions(
-      line = list(
-        marker = list(
-          enabled = "false",
-          fillColor = "transparent",
-          width = 0,
-          height = 0,
-          enabledThreshold = 99,
-          radius = 1
-        )
-      ),
-      series = list(
-        tooltip = list(
-          enabled = TRUE,
-          followPointer = "true",
-          fillColor = "transparent"
-        )
-      ),
-      area = list(
-        states = list(
-          hover = list(
-            enabled = TRUE
-          )
-        ),
-        marker = list(
-          enabled = FALSE,
-          fillColor = "blue",
-          width = 1,
-          height = 1,
-          enabledThreshold = 10,
-          radius = 1
-        )
-      )
-    ) %>%
-    hc_xAxis(
-      title = list(text = "Age"),
-      gridLineColor= 'lightgray',
-      gridLineWidth= 1,
-      gridLineDashStyle = "Dot",
-      tickLength= 10,
-      tickWidth= 2,
-      tickmarkPlacement= 'between'
-    ) %>%
-    hc_yAxis(
-      title = list(text = ytitle),
-      max = y_max
-    ) %>%
-    hc_tooltip(
-      enabled = TRUE,
-      valueDecimals = 2,
-      pointFormat = '{point.y} ',
-      valueSuffix = ' '
-    ) %>%
-    hc_chart(
-      style = list(
-        fontFamily = "Inter"
-      )
-    ) %>%
-    hc_legend(
-      enabled = F
+    plot_df <- data.frame(
+      age = d_dat$res$age,
+      var = d_dat$res[, 5]
     )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
   })
   
   # reactive values for Finland ----
@@ -757,6 +592,151 @@ server <- function(input, output, session) {
     )
   })
   
+  # absolute shortfall highchart
+  highchart_f_as <- reactive({
+    if (f_dat$shortfall_abs < 0) {
+      p_error <- highchart() %>%
+        hc_title(
+          text = "Error: QALYs must be lower with the disease.",
+          align = "center",
+          x = -10,
+          verticalAlign = 'middle',
+          floating = TRUE,
+          style = list(
+            fontSize = "16px",
+            color = "#7cb5ec"
+          )
+        )
+      return(p_error)
+    } else {
+      short_fall <- data.frame(
+        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
+        value = c(input$f_remaining_qalys, f_dat$shortfall_abs, max(f_dat$res$Qx[1])),
+        color = c("#7cb5ec", "#6d757d", "#3e6386"),
+        a = c(FALSE, FALSE, TRUE)
+      )
+      
+      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(f_dat$shortfall_abs, 2), "</b>")
+      
+      p1 <- highchart() %>%
+        hc_add_series(
+          data = short_fall, "waterfall",
+          pointPadding = "0",
+          hcaes(
+            name = name,
+            y = value,
+            isSum = a,
+            color = color
+          ),
+          name = "QALYs"
+        ) %>%
+        hc_chart(
+          style = list(
+            fontFamily = "Inter"
+          )
+        ) %>%
+        hc_tooltip(
+          valueDecimals = 2
+        ) %>%
+        hc_xAxis(
+          categories = short_fall$name
+        ) %>%
+        hc_boost(enabled = FALSE)
+      
+      return(p1)
+    }
+  })
+  
+  # proportional shortfall highchart
+  highchart_f_ps <- reactive({
+    short_fall <- data.frame(
+      type = c("With disease", "% Shortfall"),
+      percent = c(100 - f_dat$shortfall_prop * 100, f_dat$shortfall_prop * 100),
+      col = c("green", "gray")
+    )
+    
+    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(f_dat$shortfall_prop * 100, 1), "%")
+    
+    p1 <- create_highchart(
+      plot_df = short_fall,
+      title = shortfall_str,
+      ytitle = "QALE",
+      y_max = NULL,
+      color = c("#7cb5ec", "gray")
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative QALY highchart
+  highchart_f_cq <- reactive({
+    disc_str <- input$f_disc_rate > 0
+    y_max <- max(f_dat$res$Qx[1])
+    title <- paste0("QALYs without the disease: <b>", round(max(f_dat$res$Qx[1]), 2), "</b>", ifelse(disc_str, "(discounted)", ""))
+    ytitle <- "Cumulative QALYs"
+    
+    plot_df <- data.frame(
+      age = f_dat$res$age,
+      var = f_dat$res[, 6]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # HRQoL highchart
+  highchart_f_hrqol <- reactive({
+    disc_str <- input$f_disc_rate > 0
+    y_max <- max(f_dat$res$Qx[1])
+    title <- paste0("HRQoL over the lifecourse", ifelse(disc_str, "(undiscounted)", ""))
+    ytitle <- "EQ-5D score"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = f_dat$res$age,
+      var = f_dat$res[, 2]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative survival highchart
+  highchart_f_cs <- reactive({
+    title <- paste0("Cumulative survival")
+    ytitle <- "S(t)"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = f_dat$res$age,
+      var = f_dat$res[, 5]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
   # reactive values for Norway ----
   n_dat = reactiveValues()
   
@@ -806,6 +786,151 @@ server <- function(input, output, session) {
              1.2,
              1)
     )
+  })
+  
+  # absolute shortfall highchart
+  highchart_n_as <- reactive({
+    if (n_dat$shortfall_abs < 0) {
+      p_error <- highchart() %>%
+        hc_title(
+          text = "Error: QALYs must be lower with the disease.",
+          align = "center",
+          x = -10,
+          verticalAlign = 'middle',
+          floating = TRUE,
+          style = list(
+            fontSize = "16px",
+            color = "#7cb5ec"
+          )
+        )
+      return(p_error)
+    } else {
+      short_fall <- data.frame(
+        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
+        value = c(input$n_remaining_qalys, n_dat$shortfall_abs, max(n_dat$res$Qx[1])),
+        color = c("#7cb5ec", "#6d757d", "#3e6386"),
+        a = c(FALSE, FALSE, TRUE)
+      )
+      
+      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(n_dat$shortfall_abs, 2), "</b>")
+      
+      p1 <- highchart() %>%
+        hc_add_series(
+          data = short_fall, "waterfall",
+          pointPadding = "0",
+          hcaes(
+            name = name,
+            y = value,
+            isSum = a,
+            color = color
+          ),
+          name = "QALYs"
+        ) %>%
+        hc_chart(
+          style = list(
+            fontFamily = "Inter"
+          )
+        ) %>%
+        hc_tooltip(
+          valueDecimals = 2
+        ) %>%
+        hc_xAxis(
+          categories = short_fall$name
+        ) %>%
+        hc_boost(enabled = FALSE)
+      
+      return(p1)
+    }
+  })
+  
+  # proportional shortfall highchart
+  highchart_n_ps <- reactive({
+    short_fall <- data.frame(
+      type = c("With disease", "% Shortfall"),
+      percent = c(100 - n_dat$shortfall_prop * 100, n_dat$shortfall_prop * 100),
+      col = c("green", "gray")
+    )
+    
+    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(n_dat$shortfall_prop * 100, 1), "%")
+    
+    p1 <- create_highchart(
+      plot_df = short_fall,
+      title = shortfall_str,
+      ytitle = "QALE",
+      y_max = NULL,
+      color = c("#7cb5ec", "gray")
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative QALY highchart
+  highchart_n_cq <- reactive({
+    disc_str <- input$n_disc_rate > 0
+    y_max <- max(n_dat$res$Qx[1])
+    title <- paste0("QALYs without the disease: <b>", round(max(n_dat$res$Qx[1]), 2), "</b>", ifelse(disc_str, "(discounted)", ""))
+    ytitle <- "Cumulative QALYs"
+    
+    plot_df <- data.frame(
+      age = n_dat$res$age,
+      var = n_dat$res[, 6]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # HRQoL highchart
+  highchart_n_hrqol <- reactive({
+    disc_str <- input$n_disc_rate > 0
+    y_max <- max(n_dat$res$Qx[1])
+    title <- paste0("HRQoL over the lifecourse", ifelse(disc_str, "(undiscounted)", ""))
+    ytitle <- "EQ-5D score"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = n_dat$res$age,
+      var = n_dat$res[, 2]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative survival highchart
+  highchart_n_cs <- reactive({
+    title <- paste0("Cumulative survival")
+    ytitle <- "S(t)"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = n_dat$res$age,
+      var = n_dat$res[, 5]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
   })
   
   # reactive values for Sweden ----
@@ -861,6 +986,151 @@ server <- function(input, output, session) {
     )
   })
   
+  # absolute shortfall highchart
+  highchart_s_as <- reactive({
+    if (s_dat$shortfall_abs < 0) {
+      p_error <- highchart() %>%
+        hc_title(
+          text = "Error: QALYs must be lower with the disease.",
+          align = "center",
+          x = -10,
+          verticalAlign = 'middle',
+          floating = TRUE,
+          style = list(
+            fontSize = "16px",
+            color = "#7cb5ec"
+          )
+        )
+      return(p_error)
+    } else {
+      short_fall <- data.frame(
+        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
+        value = c(input$s_remaining_qalys, s_dat$shortfall_abs, max(s_dat$res$Qx[1])),
+        color = c("#7cb5ec", "#6d757d", "#3e6386"),
+        a = c(FALSE, FALSE, TRUE)
+      )
+      
+      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(s_dat$shortfall_abs, 2), "</b>")
+      
+      p1 <- highchart() %>%
+        hc_add_series(
+          data = short_fall, "waterfall",
+          pointPadding = "0",
+          hcaes(
+            name = name,
+            y = value,
+            isSum = a,
+            color = color
+          ),
+          name = "QALYs"
+        ) %>%
+        hc_chart(
+          style = list(
+            fontFamily = "Inter"
+          )
+        ) %>%
+        hc_tooltip(
+          valueDecimals = 2
+        ) %>%
+        hc_xAxis(
+          categories = short_fall$name
+        ) %>%
+        hc_boost(enabled = FALSE)
+      
+      return(p1)
+    }
+  })
+  
+  # proportional shortfall highchart
+  highchart_s_ps <- reactive({
+    short_fall <- data.frame(
+      type = c("With disease", "% Shortfall"),
+      percent = c(100 - s_dat$shortfall_prop * 100, s_dat$shortfall_prop * 100),
+      col = c("green", "gray")
+    )
+    
+    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(s_dat$shortfall_prop * 100, 1), "%")
+    
+    p1 <- create_highchart(
+      plot_df = short_fall,
+      title = shortfall_str,
+      ytitle = "QALE",
+      y_max = NULL,
+      color = c("#7cb5ec", "gray")
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative QALY highchart
+  highchart_s_cq <- reactive({
+    disc_str <- input$s_disc_rate > 0
+    y_max <- max(s_dat$res$Qx[1])
+    title <- paste0("QALYs without the disease: <b>", round(max(s_dat$res$Qx[1]), 2), "</b>", ifelse(disc_str, "(discounted)", ""))
+    ytitle <- "Cumulative QALYs"
+    
+    plot_df <- data.frame(
+      age = s_dat$res$age,
+      var = s_dat$res[, 6]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # HRQoL highchart
+  highchart_s_hrqol <- reactive({
+    disc_str <- input$s_disc_rate > 0
+    y_max <- max(s_dat$res$Qx[1])
+    title <- paste0("HRQoL over the lifecourse", ifelse(disc_str, "(undiscounted)", ""))
+    ytitle <- "EQ-5D score"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = s_dat$res$age,
+      var = s_dat$res[, 2]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
+  # cumulative survival highchart
+  highchart_s_cs <- reactive({
+    title <- paste0("Cumulative survival")
+    ytitle <- "S(t)"
+    y_max <- 1
+    
+    plot_df <- data.frame(
+      age = s_dat$res$age,
+      var = s_dat$res[, 5]
+    )
+    
+    p1 <- create_highchart(
+      plot_df = plot_df,
+      title = title,
+      ytitle = ytitle,
+      y_max = y_max,
+      color = "#7cb5ec"
+    )
+    
+    return(p1)
+  })
+  
   # numeric outputs ----
   # country wise output card 1
   output$d_qales_healthy_txt = renderText({fRound(d_dat$res$Qx[1],2)})
@@ -895,18 +1165,33 @@ server <- function(input, output, session) {
   # highcharts ----
   # country wise output card 6
   output$d_hc_as = renderHighchart({highchart_d_as()})
+  output$f_hc_as = renderHighchart({highchart_f_as()})
+  output$n_hc_as = renderHighchart({highchart_n_as()})
+  output$s_hc_as = renderHighchart({highchart_s_as()})
   
   # country wise output card 7
   output$d_hc_ps = renderHighchart({highchart_d_ps()})
+  output$f_hc_ps = renderHighchart({highchart_f_ps()})
+  output$n_hc_ps = renderHighchart({highchart_n_ps()})
+  output$s_hc_ps = renderHighchart({highchart_s_ps()})
   
   # country wise output card 8
   output$d_hc_cq = renderHighchart({highchart_d_cq()})
+  output$f_hc_cq = renderHighchart({highchart_f_cq()})
+  output$n_hc_cq = renderHighchart({highchart_n_cq()})
+  output$s_hc_cq = renderHighchart({highchart_s_cq()})
   
   # country wise output card 9
   output$d_hc_hrqol = renderHighchart({highchart_d_hrqol()})
+  output$f_hc_hrqol = renderHighchart({highchart_f_hrqol()})
+  output$n_hc_hrqol = renderHighchart({highchart_n_hrqol()})
+  output$s_hc_hrqol = renderHighchart({highchart_s_hrqol()})
   
   # country wise output card 10
   output$d_hc_cs = renderHighchart({highchart_d_cs()})
+  output$f_hc_cs = renderHighchart({highchart_f_cs()})
+  output$n_hc_cs = renderHighchart({highchart_n_cs()})
+  output$s_hc_cs = renderHighchart({highchart_s_cs()})
   
   
 }
