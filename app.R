@@ -115,12 +115,20 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("QALY weight:"), card_body(uiOutput("d_mltplr_txt")))
     ),
     layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall"), card_body(highchartOutput("d_hc_as"))),
-      card(fill = FALSE, card_header("Proportional shortfall"), card_body(shiny::uiOutput("d_hc_ps"))),
-      card(fill = FALSE, card_header("Cummulative QALYs"), card_body(shiny::uiOutput("d_hc_cq"))),
-      card(fill = FALSE, card_header("HRQoL by year"), card_body(shiny::uiOutput("d_hc_hrqol"))),
-      card(fill = FALSE, card_header("Cummulative Survival"), card_body(shiny::uiOutput("d_hc_cs")))
+      width = 1/2,
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Shortfall",
+        nav_panel("Absolute", card_body(highchartOutput("d_hc_as"))),
+        nav_panel("Proportional", card_body(highchartOutput("d_hc_ps")))),
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Other",
+        nav_panel("Cumulative QALYs", card_body(highchartOutput("d_hc_cq"))),
+        nav_panel("HRQoL by year", card_body(highchartOutput("d_hc_hrqol"))),
+        nav_panel("Cumulative Survival", card_body(highchartOutput("d_hc_cs")))),
     )
   ),
   # Finland cards ----
@@ -136,12 +144,20 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("f_mltplr_txt")))
     ),
     layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall")),
-      card(fill = FALSE, card_header("Proportional shortfall")),
-      card(fill = FALSE, card_header("Cummulative QALYs")),
-      card(fill = FALSE, card_header("HRQoL by year")),
-      card(fill = FALSE, card_header("Cummulative Survival"))
+      width = 1/2,
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Shortfall",
+        nav_panel("Absolute", card_body(highchartOutput("f_hc_as"))),
+        nav_panel("Proportional", card_body(highchartOutput("f_hc_ps")))),
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Other",
+        nav_panel("Cumulative QALYs", card_body(highchartOutput("f_hc_cq"))),
+        nav_panel("HRQoL by year", card_body(highchartOutput("f_hc_hrqol"))),
+        nav_panel("Cumulative Survival", card_body(highchartOutput("f_hc_cs")))),
     )
   ),
   # Norway cards ----
@@ -157,12 +173,20 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("n_mltplr_txt")))
     ),
     layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall")),
-      card(fill = FALSE, card_header("Proportional shortfall")),
-      card(fill = FALSE, card_header("Cummulative QALYs")),
-      card(fill = FALSE, card_header("HRQoL by year")),
-      card(fill = FALSE, card_header("Cummulative Survival"))
+      width = 1/2,
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Shortfall",
+        nav_panel("Absolute", card_body(highchartOutput("n_hc_as"))),
+        nav_panel("Proportional", card_body(highchartOutput("n_hc_ps")))),
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Other",
+        nav_panel("Cumulative QALYs", card_body(highchartOutput("n_hc_cq"))),
+        nav_panel("HRQoL by year", card_body(highchartOutput("n_hc_hrqol"))),
+        nav_panel("Cumulative Survival", card_body(highchartOutput("n_hc_cs")))),
     )
   ),
   # Sweden cards ----
@@ -178,12 +202,20 @@ ui <- page_navbar(
       card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("s_mltplr_txt")))
     ),
     layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("Absolute shortfall"), card_body(shiny::uiOutput("s_as_high_chart"))),
-      card(fill = FALSE, card_header("Proportional shortfall")),
-      card(fill = FALSE, card_header("Cummulative QALYs")),
-      card(fill = FALSE, card_header("HRQoL by year")),
-      card(fill = FALSE, card_header("Cummulative Survival"))
+      width = 1/2,
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Shortfall",
+        nav_panel("Absolute", card_body(highchartOutput("s_hc_as"))),
+        nav_panel("Proportional", card_body(highchartOutput("s_hc_ps")))),
+      navset_card_tab(
+        height = 450,
+        full_screen = TRUE,
+        title = "Other",
+        nav_panel("Cumulative QALYs", card_body(highchartOutput("s_hc_cq"))),
+        nav_panel("HRQoL by year", card_body(highchartOutput("s_hc_hrqol"))),
+        nav_panel("Cumulative Survival", card_body(highchartOutput("s_hc_cs")))),
     )
   )
 )
@@ -283,6 +315,7 @@ server <- function(input, output, session) {
     )
   })
   
+  # absolute shortfall highchart ----
   highchart_d_as = reactive({
     if(d_dat$shortfall_abs < 0){
       p_error = highchart() %>%
@@ -340,6 +373,337 @@ server <- function(input, output, session) {
       return(p1)
     }
     
+  })
+  
+  # proportional shortfall highchart ----
+  highchart_d_ps = reactive({
+    short_fall = data.frame(
+      type = c("With disease", "% Shortfall"),
+      percent = c(100 - d_dat$shortfall_prop*100, d_dat$shortfall_prop*100),
+      col = c("green","gray")
+    )
+    
+    shortfall_str = paste0(round(d_dat$shortfall_prop*100,1))
+    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
+    
+    p1 = highchart() %>%
+      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
+      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
+      hc_chart(
+        style = list(
+          fontFamily = "Inter"
+        )
+      ) %>%
+      hc_tooltip(
+        valueDecimals = 1,
+        valueSuffix = '%'
+      ) %>%
+      hc_colors(c("#7cb5ec","gray"))
+    
+    return(p1)
+  })
+  
+  # cummulative QALY highchart ----
+  highchart_d_cq = reactive({
+    disc_str = input$d_disc_rate > 0
+    y_max = max(d_dat$res$Qx[1])
+  title = round(max(d_dat$res$Qx[1]),2)
+  title = paste0("QALYs without the disease: <b>",title,"</b>",ifelse(disc_str,"(discounted)",""))
+  ytitle = "Cumulative QALYs"
+
+  plot_df = data.frame(
+    age = d_dat$res$age,
+    var = d_dat$res[,6]
+  )
+
+  highchart(
+    hc_opts = list(),
+    theme = getOption("highcharter.theme"),
+    type = "chart",
+    width = NULL,
+    height = NULL,
+    elementId = NULL,
+    google_fonts = getOption("highcharter.google_fonts")
+  ) %>%
+    hc_add_series(
+      plot_df, type = "area",
+      name = "Shortfall", color = "#7cb5ec",
+      hcaes(x = "age", y= "var"),
+      tooltip = list(enabled = FALSE),
+      fast = T) %>%
+
+    hc_title(
+      text = title,
+      y = 60, x=-50,
+
+      style = list(
+        fontSize = "16px"
+      )
+    ) %>%
+
+    hc_plotOptions(
+      line = list(
+        marker = list(
+          enabled = "false",
+          fillColor = "transparent",
+          width = 0,
+          height = 0,
+          enabledThreshold = 99,
+          radius = 1
+        )
+      ),
+      series = list(
+        tooltip = list(
+          enabled = TRUE,
+          followPointer = "true",
+          fillColor = "transparent"
+        )
+      ),
+      area = list(
+        states = list(
+          hover = list(
+            enabled = TRUE
+          )
+        ),
+        marker = list(
+          enabled = FALSE,
+          fillColor = "blue",
+          width = 1,
+          height = 1,
+          enabledThreshold = 10,
+          radius = 1
+        )
+      )
+    ) %>%
+    hc_xAxis(
+      title = list(text = "Age"),
+      gridLineColor= 'lightgray',
+      gridLineWidth= 1,
+      gridLineDashStyle = "Dot",
+      tickLength= 10,
+      tickWidth= 2,
+      tickmarkPlacement= 'between'
+    ) %>%
+    hc_yAxis(
+      title = list(text = ytitle),
+      max = y_max
+    ) %>%
+    hc_tooltip(
+      enabled = TRUE,
+      valueDecimals = 2,
+      pointFormat = '{point.y} ',
+      valueSuffix = ' '
+    ) %>%
+    hc_chart(
+      style = list(
+        fontFamily = "Inter"
+      )
+    ) %>%
+    hc_legend(
+      enabled = F
+    )
+  })
+  
+  # HRQoL highchart ----
+  highchart_d_hrqol = reactive({
+    disc_str = input$d_disc_rate > 0
+    y_max = max(d_dat$res$Qx[1])
+    title = paste0("HRQoL over the lifecourse", ifelse(disc_str,"(undiscounted)",""))
+  ytitle = "EQ-5D score"
+  y_max = 1
+  
+  plot_df = data.frame(
+    age = d_dat$res$age,
+    var = d_dat$res[,2]
+  )
+  
+  highchart(
+    hc_opts = list(),
+    theme = getOption("highcharter.theme"),
+    type = "chart",
+    width = NULL,
+    height = NULL,
+    elementId = NULL,
+    google_fonts = getOption("highcharter.google_fonts")
+  ) %>%
+    hc_add_series(
+      plot_df, type = "area",
+      name = "Shortfall", color = "#7cb5ec",
+      hcaes(x = "age", y= "var"),
+      tooltip = list(enabled = FALSE),
+      fast = T) %>%
+    
+    hc_title(
+      text = title,
+      y = 60, x=-50,
+      
+      style = list(
+        fontSize = "16px"
+      )
+    ) %>%
+    
+    
+    hc_plotOptions(
+      line = list(
+        marker = list(
+          enabled = "false",
+          fillColor = "transparent",
+          width = 0,
+          height = 0,
+          enabledThreshold = 99,
+          radius = 1
+        )
+      ),
+      series = list(
+        tooltip = list(
+          enabled = TRUE,
+          followPointer = "true",
+          fillColor = "transparent"
+        )
+      ),
+      area = list(
+        states = list(
+          hover = list(
+            enabled = TRUE
+          )
+        ),
+        marker = list(
+          enabled = FALSE,
+          fillColor = "blue",
+          width = 1,
+          height = 1,
+          enabledThreshold = 10,
+          radius = 1
+        )
+      )
+    ) %>%
+    hc_xAxis(
+      title = list(text = "Age"),
+      gridLineColor= 'lightgray',
+      gridLineWidth= 1,
+      gridLineDashStyle = "Dot",
+      tickLength= 10,
+      tickWidth= 2,
+      tickmarkPlacement= 'between'
+    ) %>%
+    hc_yAxis(
+      title = list(text = ytitle),
+      max = y_max
+    ) %>%
+    hc_tooltip(
+      enabled = TRUE,
+      valueDecimals = 2,
+      pointFormat = '{point.y} ',
+      valueSuffix = ' '
+    ) %>%
+    hc_chart(
+      style = list(
+        fontFamily = "Inter"
+      )
+    ) %>%
+    hc_legend(
+      enabled = F
+    )
+  })
+  
+  # cummulative survival highchart ----
+  highchart_d_cs = reactive({
+    title = paste0("Cumulative survival")
+  ytitle = "S(t)"
+  y_max = 1
+  
+  plot_df = data.frame(
+    age = d_dat$res$age,
+    var = d_dat$res[,5]
+  )
+  
+  highchart(
+    hc_opts = list(),
+    theme = getOption("highcharter.theme"),
+    type = "chart",
+    width = NULL,
+    height = NULL,
+    elementId = NULL,
+    google_fonts = getOption("highcharter.google_fonts")
+  ) %>%
+    hc_add_series(
+      plot_df, type = "area",
+      name = "Shortfall", color = "#7cb5ec",
+      hcaes(x = "age", y= "var"),
+      tooltip = list(enabled = FALSE),
+      fast = T) %>%
+    
+    hc_title(
+      text = title,
+      y = 60, x=-50,
+      
+      style = list(
+        fontSize = "16px"
+      )
+    ) %>%
+    
+    
+    hc_plotOptions(
+      line = list(
+        marker = list(
+          enabled = "false",
+          fillColor = "transparent",
+          width = 0,
+          height = 0,
+          enabledThreshold = 99,
+          radius = 1
+        )
+      ),
+      series = list(
+        tooltip = list(
+          enabled = TRUE,
+          followPointer = "true",
+          fillColor = "transparent"
+        )
+      ),
+      area = list(
+        states = list(
+          hover = list(
+            enabled = TRUE
+          )
+        ),
+        marker = list(
+          enabled = FALSE,
+          fillColor = "blue",
+          width = 1,
+          height = 1,
+          enabledThreshold = 10,
+          radius = 1
+        )
+      )
+    ) %>%
+    hc_xAxis(
+      title = list(text = "Age"),
+      gridLineColor= 'lightgray',
+      gridLineWidth= 1,
+      gridLineDashStyle = "Dot",
+      tickLength= 10,
+      tickWidth= 2,
+      tickmarkPlacement= 'between'
+    ) %>%
+    hc_yAxis(
+      title = list(text = ytitle),
+      max = y_max
+    ) %>%
+    hc_tooltip(
+      enabled = TRUE,
+      valueDecimals = 2,
+      pointFormat = '{point.y} ',
+      valueSuffix = ' '
+    ) %>%
+    hc_chart(
+      style = list(
+        fontFamily = "Inter"
+      )
+    ) %>%
+    hc_legend(
+      enabled = F
+    )
   })
   
   # reactive values for Finland ----
@@ -531,13 +895,18 @@ server <- function(input, output, session) {
   # highcharts ----
   # country wise output card 6
   output$d_hc_as = renderHighchart({highchart_d_as()})
+  
   # country wise output card 7
+  output$d_hc_ps = renderHighchart({highchart_d_ps()})
   
   # country wise output card 8
+  output$d_hc_cq = renderHighchart({highchart_d_cq()})
   
   # country wise output card 9
+  output$d_hc_hrqol = renderHighchart({highchart_d_hrqol()})
   
   # country wise output card 10
+  output$d_hc_cs = renderHighchart({highchart_d_cs()})
   
   
 }
