@@ -451,23 +451,30 @@ server <- function(input, output, session) {
     }
   })
   
-  # proportional shortfall highchart
-  highchart_d_ps <- reactive({
-    short_fall <- data.frame(
+  # proportional shortfall highchart ----
+  highchart_d_ps = reactive({
+    short_fall = data.frame(
       type = c("With disease", "% Shortfall"),
-      percent = c(100 - d_dat$shortfall_prop * 100, d_dat$shortfall_prop * 100),
-      col = c("green", "gray")
+      percent = c(100 - d_dat$shortfall_prop*100, d_dat$shortfall_prop*100),
+      col = c("green","gray")
     )
     
-    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(d_dat$shortfall_prop * 100, 1), "%")
+    shortfall_str = paste0(round(d_dat$shortfall_prop*100,1))
+    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
     
-    p1 <- create_highchart(
-      plot_df = short_fall,
-      title = shortfall_str,
-      ytitle = "QALE",
-      y_max = NULL,
-      color = c("#7cb5ec", "gray")
-    )
+    p1 = highchart() %>%
+      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
+      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
+      hc_chart(
+        style = list(
+          fontFamily = "Inter"
+        )
+      ) %>%
+      hc_tooltip(
+        valueDecimals = 1,
+        valueSuffix = '%'
+      ) %>%
+      hc_colors(c("#7cb5ec","gray"))
     
     return(p1)
   })
@@ -647,23 +654,30 @@ server <- function(input, output, session) {
     }
   })
   
-  # proportional shortfall highchart
-  highchart_f_ps <- reactive({
-    short_fall <- data.frame(
+  # proportional shortfall highchart ----
+  highchart_f_ps = reactive({
+    short_fall = data.frame(
       type = c("With disease", "% Shortfall"),
-      percent = c(100 - f_dat$shortfall_prop * 100, f_dat$shortfall_prop * 100),
-      col = c("green", "gray")
+      percent = c(100 - f_dat$shortfall_prop*100, f_dat$shortfall_prop*100),
+      col = c("green","gray")
     )
     
-    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(f_dat$shortfall_prop * 100, 1), "%")
+    shortfall_str = paste0(round(f_dat$shortfall_prop*100,1))
+    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
     
-    p1 <- create_highchart(
-      plot_df = short_fall,
-      title = shortfall_str,
-      ytitle = "QALE",
-      y_max = NULL,
-      color = c("#7cb5ec", "gray")
-    )
+    p1 = highchart() %>%
+      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
+      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
+      hc_chart(
+        style = list(
+          fontFamily = "Inter"
+        )
+      ) %>%
+      hc_tooltip(
+        valueDecimals = 1,
+        valueSuffix = '%'
+      ) %>%
+      hc_colors(c("#7cb5ec","gray"))
     
     return(p1)
   })
@@ -843,23 +857,30 @@ server <- function(input, output, session) {
     }
   })
   
-  # proportional shortfall highchart
-  highchart_n_ps <- reactive({
-    short_fall <- data.frame(
+  # proportional shortfall highchart ----
+  highchart_n_ps = reactive({
+    short_fall = data.frame(
       type = c("With disease", "% Shortfall"),
-      percent = c(100 - n_dat$shortfall_prop * 100, n_dat$shortfall_prop * 100),
-      col = c("green", "gray")
+      percent = c(100 - n_dat$shortfall_prop*100, n_dat$shortfall_prop*100),
+      col = c("green","gray")
     )
     
-    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(n_dat$shortfall_prop * 100, 1), "%")
+    shortfall_str = paste0(round(n_dat$shortfall_prop*100,1))
+    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
     
-    p1 <- create_highchart(
-      plot_df = short_fall,
-      title = shortfall_str,
-      ytitle = "QALE",
-      y_max = NULL,
-      color = c("#7cb5ec", "gray")
-    )
+    p1 = highchart() %>%
+      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
+      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
+      hc_chart(
+        style = list(
+          fontFamily = "Inter"
+        )
+      ) %>%
+      hc_tooltip(
+        valueDecimals = 1,
+        valueSuffix = '%'
+      ) %>%
+      hc_colors(c("#7cb5ec","gray"))
     
     return(p1)
   })
@@ -1041,23 +1062,30 @@ server <- function(input, output, session) {
     }
   })
   
-  # proportional shortfall highchart
-  highchart_s_ps <- reactive({
-    short_fall <- data.frame(
+  # proportional shortfall highchart ----
+  highchart_s_ps = reactive({
+    short_fall = data.frame(
       type = c("With disease", "% Shortfall"),
-      percent = c(100 - s_dat$shortfall_prop * 100, s_dat$shortfall_prop * 100),
-      col = c("green", "gray")
+      percent = c(100 - s_dat$shortfall_prop*100, s_dat$shortfall_prop*100),
+      col = c("green","gray")
     )
     
-    shortfall_str <- paste0("Proportional<br>QALY<br>shortfall:<br><b>", round(s_dat$shortfall_prop * 100, 1), "%")
+    shortfall_str = paste0(round(s_dat$shortfall_prop*100,1))
+    shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
     
-    p1 <- create_highchart(
-      plot_df = short_fall,
-      title = shortfall_str,
-      ytitle = "QALE",
-      y_max = NULL,
-      color = c("#7cb5ec", "gray")
-    )
+    p1 = highchart() %>%
+      hc_add_series(short_fall, "pie", hcaes(name = type, y = percent), name = "QALE", innerSize="70%") %>%
+      hc_title(text = shortfall_str, align = "center",x=0, verticalAlign = 'middle', floating = "true", style = list(fontSize = "16px")) %>%
+      hc_chart(
+        style = list(
+          fontFamily = "Inter"
+        )
+      ) %>%
+      hc_tooltip(
+        valueDecimals = 1,
+        valueSuffix = '%'
+      ) %>%
+      hc_colors(c("#7cb5ec","gray"))
     
     return(p1)
   })
