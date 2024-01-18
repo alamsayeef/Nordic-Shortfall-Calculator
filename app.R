@@ -30,275 +30,22 @@ for (country in countries) {
 # load function to compute life and quality-adjusted life expectancies
 source("./scr/compQale.R")
 
-# consistent digits
-fRound = function(str, digits = 2, width = 2){
-  formatC(str, digits = 2, width = 2, format = "f")
-}
-
-# sidebar ----
-create_accordion_panel = function(country, prefix, selected = FALSE) {
-  accordion_panel(
-    country,
-    sliderInput(
-      paste0(prefix, "_start_age"),
-      "Age of the patient population",
-      min = 0,
-      max = 100,
-      value = 0,
-      step = 1
-    ),
-    sliderInput(
-      paste0(prefix, "_sex_mix"),
-      "% female in the patient population",
-      min = 0,
-      max = 100,
-      value = 50,
-      step = 1
-    ),
-    selectInput(
-      paste0(prefix, "_utils"),
-      "Select scenario",
-      choices = list(
-        "Reference case: MVH value set + HSE 2014 ALDVMM model (Hernandez Alava et al)" = paste0(prefix, "_dsu_2014"),
-        "Alternative A: 5L to 3L mapping (Hernandez Alava et al) + HSE 2017-2018" = paste0(prefix, "_dsu"),
-        "Alternative B: 5L to 3L mapping (van Hout et al) + HSE 2017-2018" = paste0(prefix, "_vanHout"),
-        "Alternative C: MVH value set + health state profiles" = paste0(prefix, "_mvh"),
-        "Alternative D: MVH value set + HSE 2012+14" = paste0(prefix, "_tto")
-      ),
-      selected = paste0(prefix, "_dsu_2014")
-    ),
-    sliderInput(
-      paste0(prefix, "_remaining_qalys"),
-      "Remaining QALYS",
-      min = 0,
-      max = 49,
-      value = 10,
-      step = 1
-    ),
-    sliderInput(
-      paste0(prefix, "_disc_rate"),
-      "Discount rate",
-      min = 0,
-      max = 10,
-      value = 1.5,
-      step = 0.5
-    ),
-    selected = selected  # Set selected argument
-  )
-}
-
-sidebar_acc = accordion(open = F,
-                        create_accordion_panel("Denmark", "d"),
-                        create_accordion_panel("Finland", "f"),
-                        create_accordion_panel("Norway", "n"),
-                        create_accordion_panel("Sweden", "s")
-)
-
-# Function to create Highchart
-create_highchart <- function(plot_df, title, ytitle, y_max, color = "#7cb5ec") {
-  highchart(
-    hc_opts = list(),
-    theme = getOption("highcharter.theme"),
-    type = "chart",
-    width = NULL,
-    height = NULL,
-    elementId = NULL,
-    google_fonts = getOption("highcharter.google_fonts")
-  ) %>%
-    hc_add_series(
-      plot_df, type = "area",
-      name = "Shortfall", color = color,
-      hcaes(x = "age", y = "var"),
-      tooltip = list(enabled = FALSE),
-      fast = TRUE
-    ) %>%
-    hc_title(
-      text = title,
-      y = 60, x = -50,
-      style = list(fontSize = "16px")
-    ) %>%
-    hc_plotOptions(
-      line = list(
-        marker = list(
-          enabled = FALSE
-        )
-      ),
-      series = list(
-        tooltip = list(
-          enabled = TRUE,
-          followPointer = TRUE,
-          fillColor = "transparent"
-        )
-      ),
-      area = list(
-        states = list(
-          hover = list(
-            enabled = TRUE
-          )
-        ),
-        marker = list(
-          enabled = FALSE,
-          fillColor = "blue",
-          width = 1,
-          height = 1,
-          enabledThreshold = 10,
-          radius = 1
-        )
-      )
-    ) %>%
-    hc_xAxis(
-      title = list(text = "Age"),
-      gridLineColor = 'lightgray',
-      gridLineWidth = 1,
-      gridLineDashStyle = "Dot",
-      tickLength = 10,
-      tickWidth = 2,
-      tickmarkPlacement = 'between'
-    ) %>%
-    hc_yAxis(
-      title = list(text = ytitle),
-      max = y_max
-    ) %>%
-    hc_tooltip(
-      enabled = TRUE,
-      valueDecimals = 2,
-      pointFormat = '{point.y} ',
-      valueSuffix = ' '
-    ) %>%
-    hc_chart(
-      style = list(
-        fontFamily = "Inter"
-      )
-    ) %>%
-    hc_legend(
-      enabled = FALSE
-    )
-}
+# load the other functions
+source("./scr/loadFnc.R")
 
 # UI ----
 ui <- page_navbar(
-  theme = bs_theme(preset = "shiny",
-                   "primary" = "#0675DD"),
+  theme = bs_theme(preset = "shiny", "primary" = "#0675DD"),
   lang = "en",
   title = "Nordic Shortfall Calculator",
   sidebar = sidebar(HTML('<p style="font-weight:bold;">Input for</p>'), width = 300, sidebar_acc),
   nav_spacer(),
-  # Denmark cards ----
-  nav_panel(
-    "Denmark",
-    h1("Remaining QALYs for Denmark"),
-    layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("without the disease:"), card_body(uiOutput("d_qales_healthy_txt"))),
-      card(fill = FALSE, card_header("with the disease:"), card_body(uiOutput("d_qales_ill_txt"))),
-      card(fill = FALSE, card_header("absolute shortfall:"), card_body(uiOutput("d_abs_short_txt"))),
-      card(fill = FALSE, card_header("proportional shortfall:"), card_body(uiOutput("d_prop_short_txt"))),
-      card(fill = FALSE, card_header("QALY weight:"), card_body(uiOutput("d_mltplr_txt")))
-    ),
-    layout_column_wrap(
-      width = 1/2,
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Shortfall",
-        nav_panel("Absolute", card_body(highchartOutput("d_hc_as"))),
-        nav_panel("Proportional", card_body(highchartOutput("d_hc_ps")))),
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Other",
-        nav_panel("Cumulative QALYs", card_body(highchartOutput("d_hc_cq"))),
-        nav_panel("HRQoL by year", card_body(highchartOutput("d_hc_hrqol"))),
-        nav_panel("Cumulative Survival", card_body(highchartOutput("d_hc_cs")))),
-    )
-  ),
-  # Finland cards ----
-  nav_panel(
-    "Finland",
-    h1("Remaining QALYs for Finland"),
-    layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("without the disease:"), card_body(shiny::uiOutput("f_qales_healthy_txt"))),
-      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("f_qales_ill_txt"))),
-      card(fill = FALSE, card_header("absolute shortfall:"), card_body(shiny::uiOutput("f_abs_short_txt"))),
-      card(fill = FALSE, card_header("proportional shortfall:"), card_body(shiny::uiOutput("f_prop_short_txt"))),
-      card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("f_mltplr_txt")))
-    ),
-    layout_column_wrap(
-      width = 1/2,
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Shortfall",
-        nav_panel("Absolute", card_body(highchartOutput("f_hc_as"))),
-        nav_panel("Proportional", card_body(highchartOutput("f_hc_ps")))),
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Other",
-        nav_panel("Cumulative QALYs", card_body(highchartOutput("f_hc_cq"))),
-        nav_panel("HRQoL by year", card_body(highchartOutput("f_hc_hrqol"))),
-        nav_panel("Cumulative Survival", card_body(highchartOutput("f_hc_cs")))),
-    )
-  ),
-  # Norway cards ----
-  nav_panel(
-    "Norway",
-    h1("Remaining QALYs for Norway"),
-    layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("without the disease:"), card_body(shiny::uiOutput("n_qales_healthy_txt"))),
-      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("n_qales_ill_txt"))),
-      card(fill = FALSE, card_header("absolute shortfall:"), card_body(shiny::uiOutput("n_abs_short_txt"))),
-      card(fill = FALSE, card_header("proportional shortfall:"), card_body(shiny::uiOutput("n_prop_short_txt"))),
-      card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("n_mltplr_txt")))
-    ),
-    layout_column_wrap(
-      width = 1/2,
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Shortfall",
-        nav_panel("Absolute", card_body(highchartOutput("n_hc_as"))),
-        nav_panel("Proportional", card_body(highchartOutput("n_hc_ps")))),
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Other",
-        nav_panel("Cumulative QALYs", card_body(highchartOutput("n_hc_cq"))),
-        nav_panel("HRQoL by year", card_body(highchartOutput("n_hc_hrqol"))),
-        nav_panel("Cumulative Survival", card_body(highchartOutput("n_hc_cs")))),
-    )
-  ),
-  # Sweden cards ----
-  nav_panel(
-    "Sweden",
-    h1("Remaining QALYs for Sweden"),
-    layout_column_wrap(
-      width = 1/5,
-      card(fill = FALSE, card_header("without the disease:"), card_body(shiny::uiOutput("s_qales_healthy_txt"))),
-      card(fill = FALSE, card_header("with the disease:"), card_body(shiny::uiOutput("s_qales_ill_txt"))),
-      card(fill = FALSE, card_header("absolute shortfall:"), card_body(shiny::uiOutput("s_abs_short_txt"))),
-      card(fill = FALSE, card_header("proportional shortfall:"), card_body(shiny::uiOutput("s_prop_short_txt"))),
-      card(fill = FALSE, card_header("QALY weight:"), card_body(shiny::uiOutput("s_mltplr_txt")))
-    ),
-    layout_column_wrap(
-      width = 1/2,
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Shortfall",
-        nav_panel("Absolute", card_body(highchartOutput("s_hc_as"))),
-        nav_panel("Proportional", card_body(highchartOutput("s_hc_ps")))),
-      navset_card_tab(
-        height = 450,
-        full_screen = TRUE,
-        title = "Other",
-        nav_panel("Cumulative QALYs", card_body(highchartOutput("s_hc_cq"))),
-        nav_panel("HRQoL by year", card_body(highchartOutput("s_hc_hrqol"))),
-        nav_panel("Cumulative Survival", card_body(highchartOutput("s_hc_cs")))),
-    )
-  )
+  
+  # Generate nav_panels for each country
+  generate_nav_panel("Denmark", "d"),
+  generate_nav_panel("Finland", "f"),
+  generate_nav_panel("Norway", "n"),
+  generate_nav_panel("Sweden", "s")
 )
 
 # SERVER ----
@@ -350,30 +97,23 @@ server <- function(input, output, session) {
   
   observe({
     
-    if(input$d_utils == "d_mvh"){
-      util_df = d_mvh_df
-      utils = "tto"
-    }
+    util_df = switch(input$d_utils,
+                     "d_mvh" = d_mvh_df,
+                     "d_vanHout" = d_ref_df,
+                     "d_tto" = d_ref_df,
+                     "d_dsu" = d_ref_df,
+                     "d_dsu_2014" = d_ref_df,
+                     d_ref_df
+    )
     
-    if(input$d_utils == "d_vanHout" | input$d_utils== ""){
-      util_df = d_ref_df
-      utils = "cw"
-    }
-    
-    if(input$d_utils == "d_tto" | input$d_utils== ""){
-      util_df = d_ref_df
-      utils = "tto"
-    }
-    
-    if(input$d_utils == "d_dsu" ){
-      util_df = d_ref_df
-      utils = "co"
-    }
-    
-    if(input$d_utils == "d_dsu_2014" ){
-      util_df = d_ref_df
-      utils = "dsu_2014"
-    }
+    utils = switch(input$d_utils,
+                   "d_mvh" = "tto",
+                   "d_vanHout" = "cw",
+                   "d_tto" = "tto",
+                   "d_dsu" = "co",
+                   "d_dsu_2014" = "dsu_2014",
+                   "cw"
+    )
     
     d_dat$res = compQale(
       ons_df = util_df,
@@ -382,73 +122,17 @@ server <- function(input, output, session) {
       disc_rate = input$d_disc_rate/100,
       utils = utils
     )
-    #browser()  
+    
     d_dat$shortfall_abs = d_dat$res$Qx[1] - input$d_remaining_qalys
-    
     d_dat$shortfall_prop = d_dat$shortfall_abs / d_dat$res$Qx[1]
-    
-    d_dat$q_weight = ifelse(
-      d_dat$shortfall_prop >= 0.95 | d_dat$shortfall_abs >= 18,
-      1.7,
-      ifelse(d_dat$shortfall_prop >= 0.85 | d_dat$shortfall_abs >= 12,
-             1.2,
-             1)
+    d_dat$q_weight = ifelse(d_dat$shortfall_prop >= 0.95 | d_dat$shortfall_abs >= 18, 1.7,
+                      ifelse(d_dat$shortfall_prop >= 0.85 | d_dat$shortfall_abs >= 12, 1.2, 1)
     )
   })
   
   # absolute shortfall highchart
   highchart_d_as <- reactive({
-    if (d_dat$shortfall_abs < 0) {
-      p_error <- highchart() %>%
-        hc_title(
-          text = "Error: QALYs must be lower with the disease.",
-          align = "center",
-          x = -10,
-          verticalAlign = 'middle',
-          floating = TRUE,
-          style = list(
-            fontSize = "16px",
-            color = "#7cb5ec"
-          )
-        )
-      return(p_error)
-    } else {
-      short_fall <- data.frame(
-        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
-        value = c(input$d_remaining_qalys, d_dat$shortfall_abs, max(d_dat$res$Qx[1])),
-        color = c("#7cb5ec", "#6d757d", "#3e6386"),
-        a = c(FALSE, FALSE, TRUE)
-      )
-      
-      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(d_dat$shortfall_abs, 2), "</b>")
-      
-      p1 <- highchart() %>%
-        hc_add_series(
-          data = short_fall, "waterfall",
-          pointPadding = "0",
-          hcaes(
-            name = name,
-            y = value,
-            isSum = a,
-            color = color
-          ),
-          name = "QALYs"
-        ) %>%
-        hc_chart(
-          style = list(
-            fontFamily = "Inter"
-          )
-        ) %>%
-        hc_tooltip(
-          valueDecimals = 2
-        ) %>%
-        hc_xAxis(
-          categories = short_fall$name
-        ) %>%
-        hc_boost(enabled = FALSE)
-      
-      return(p1)
-    }
+    create_highchart_as(d_dat, input$d_remaining_qalys, "#7cb5ec")
   })
   
   # proportional shortfall highchart ----
@@ -553,30 +237,23 @@ server <- function(input, output, session) {
   
   observe({
     
-    if(input$f_utils == "f_mvh"){
-      util_df = f_mvh_df
-      utils = "tto"
-    }
+    util_df = switch(input$f_utils,
+                     "d_mvh" = f_mvh_df,
+                     "d_vanHout" = f_ref_df,
+                     "d_tto" = f_ref_df,
+                     "d_dsu" = f_ref_df,
+                     "d_dsu_2014" = f_ref_df,
+                     f_ref_df
+    )
     
-    if(input$f_utils == "f_vanHout" | input$f_utils== ""){
-      util_df = f_ref_df
-      utils = "cw"
-    }
-    
-    if(input$f_utils == "f_tto" | input$f_utils== ""){
-      util_df = f_ref_df
-      utils = "tto"
-    }
-    
-    if(input$f_utils == "f_dsu" ){
-      util_df = f_ref_df
-      utils = "co"
-    }
-    
-    if(input$f_utils == "f_dsu_2014" ){
-      util_df = f_ref_df
-      utils = "dsu_2014"
-    }
+    utils = switch(input$f_utils,
+                   "d_mvh" = "tto",
+                   "d_vanHout" = "cw",
+                   "d_tto" = "tto",
+                   "d_dsu" = "co",
+                   "d_dsu_2014" = "dsu_2014",
+                   "cw"
+    )
     
     f_dat$res = compQale(
       ons_df = util_df,
@@ -587,71 +264,15 @@ server <- function(input, output, session) {
     )
     
     f_dat$shortfall_abs = f_dat$res$Qx[1] - input$f_remaining_qalys
-    
     f_dat$shortfall_prop = f_dat$shortfall_abs / f_dat$res$Qx[1]
-    
-    f_dat$q_weight = ifelse(
-      f_dat$shortfall_prop >= 0.95 | f_dat$shortfall_abs >= 18,
-      1.7,
-      ifelse(f_dat$shortfall_prop >= 0.85 | f_dat$shortfall_abs >= 12,
-             1.2,
-             1)
+    f_dat$q_weight = ifelse(f_dat$shortfall_prop >= 0.95 | f_dat$shortfall_abs >= 18, 1.7,
+                      ifelse(f_dat$shortfall_prop >= 0.85 | f_dat$shortfall_abs >= 12, 1.2, 1)
     )
   })
   
   # absolute shortfall highchart
   highchart_f_as <- reactive({
-    if (f_dat$shortfall_abs < 0) {
-      p_error <- highchart() %>%
-        hc_title(
-          text = "Error: QALYs must be lower with the disease.",
-          align = "center",
-          x = -10,
-          verticalAlign = 'middle',
-          floating = TRUE,
-          style = list(
-            fontSize = "16px",
-            color = "#7cb5ec"
-          )
-        )
-      return(p_error)
-    } else {
-      short_fall <- data.frame(
-        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
-        value = c(input$f_remaining_qalys, f_dat$shortfall_abs, max(f_dat$res$Qx[1])),
-        color = c("#7cb5ec", "#6d757d", "#3e6386"),
-        a = c(FALSE, FALSE, TRUE)
-      )
-      
-      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(f_dat$shortfall_abs, 2), "</b>")
-      
-      p1 <- highchart() %>%
-        hc_add_series(
-          data = short_fall, "waterfall",
-          pointPadding = "0",
-          hcaes(
-            name = name,
-            y = value,
-            isSum = a,
-            color = color
-          ),
-          name = "QALYs"
-        ) %>%
-        hc_chart(
-          style = list(
-            fontFamily = "Inter"
-          )
-        ) %>%
-        hc_tooltip(
-          valueDecimals = 2
-        ) %>%
-        hc_xAxis(
-          categories = short_fall$name
-        ) %>%
-        hc_boost(enabled = FALSE)
-      
-      return(p1)
-    }
+    create_highchart_as(f_dat, input$f_remaining_qalys, "#7cb5ec")
   })
   
   # proportional shortfall highchart ----
@@ -756,30 +377,23 @@ server <- function(input, output, session) {
   
   observe({
     
-    if(input$n_utils == "n_mvh"){
-      util_df = n_mvh_df
-      utils = "tto"
-    }
+    util_df = switch(input$n_utils,
+                     "d_mvh" = n_mvh_df,
+                     "d_vanHout" = n_ref_df,
+                     "d_tto" = n_ref_df,
+                     "d_dsu" = n_ref_df,
+                     "d_dsu_2014" = n_ref_df,
+                     n_ref_df
+    )
     
-    if(input$n_utils == "n_vanHout" | input$n_utils== ""){
-      util_df = n_ref_df
-      utils = "cw"
-    }
-    
-    if(input$n_utils == "n_tto" | input$n_utils== ""){
-      util_df = n_ref_df
-      utils = "tto"
-    }
-    
-    if(input$n_utils == "n_dsu" ){
-      util_df = n_ref_df
-      utils = "co"
-    }
-    
-    if(input$n_utils == "n_dsu_2014" ){
-      util_df = n_ref_df
-      utils = "dsu_2014"
-    }
+    utils = switch(input$n_utils,
+                   "d_mvh" = "tto",
+                   "d_vanHout" = "cw",
+                   "d_tto" = "tto",
+                   "d_dsu" = "co",
+                   "d_dsu_2014" = "dsu_2014",
+                   "cw"
+    )
     
     n_dat$res = compQale(
       ons_df = util_df,
@@ -790,71 +404,15 @@ server <- function(input, output, session) {
     )
     
     n_dat$shortfall_abs = n_dat$res$Qx[1] - input$n_remaining_qalys
-    
     n_dat$shortfall_prop = n_dat$shortfall_abs / n_dat$res$Qx[1]
-    
-    n_dat$q_weight = ifelse(
-      n_dat$shortfall_prop >= 0.95 | n_dat$shortfall_abs >= 18,
-      1.7,
-      ifelse(n_dat$shortfall_prop >= 0.85 | n_dat$shortfall_abs >= 12,
-             1.2,
-             1)
+    n_dat$q_weight = ifelse(n_dat$shortfall_prop >= 0.95 | n_dat$shortfall_abs >= 18, 1.7,
+                            ifelse(n_dat$shortfall_prop >= 0.85 | n_dat$shortfall_abs >= 12, 1.2, 1)
     )
   })
   
   # absolute shortfall highchart
   highchart_n_as <- reactive({
-    if (n_dat$shortfall_abs < 0) {
-      p_error <- highchart() %>%
-        hc_title(
-          text = "Error: QALYs must be lower with the disease.",
-          align = "center",
-          x = -10,
-          verticalAlign = 'middle',
-          floating = TRUE,
-          style = list(
-            fontSize = "16px",
-            color = "#7cb5ec"
-          )
-        )
-      return(p_error)
-    } else {
-      short_fall <- data.frame(
-        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
-        value = c(input$n_remaining_qalys, n_dat$shortfall_abs, max(n_dat$res$Qx[1])),
-        color = c("#7cb5ec", "#6d757d", "#3e6386"),
-        a = c(FALSE, FALSE, TRUE)
-      )
-      
-      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(n_dat$shortfall_abs, 2), "</b>")
-      
-      p1 <- highchart() %>%
-        hc_add_series(
-          data = short_fall, "waterfall",
-          pointPadding = "0",
-          hcaes(
-            name = name,
-            y = value,
-            isSum = a,
-            color = color
-          ),
-          name = "QALYs"
-        ) %>%
-        hc_chart(
-          style = list(
-            fontFamily = "Inter"
-          )
-        ) %>%
-        hc_tooltip(
-          valueDecimals = 2
-        ) %>%
-        hc_xAxis(
-          categories = short_fall$name
-        ) %>%
-        hc_boost(enabled = FALSE)
-      
-      return(p1)
-    }
+    create_highchart_as(n_dat, input$n_remaining_qalys, "#7cb5ec")
   })
   
   # proportional shortfall highchart ----
@@ -959,31 +517,23 @@ server <- function(input, output, session) {
   
   observe({
     
-    if(input$s_utils == "s_mvh"){
-      util_df = s_mvh_df
-      utils = "tto"
-    }
+    util_df = switch(input$s_utils,
+                     "d_mvh" = s_mvh_df,
+                     "d_vanHout" = s_ref_df,
+                     "d_tto" = s_ref_df,
+                     "d_dsu" = s_ref_df,
+                     "d_dsu_2014" = s_ref_df,
+                     s_ref_df
+    )
     
-    if(input$s_utils == "s_vanHout" | input$s_utils== ""){
-      util_df = s_ref_df
-      utils = "cw"
-    }
-    
-    if(input$s_utils == "s_tto" | input$s_utils== ""){
-      util_df = s_ref_df
-      utils = "tto"
-    }
-    
-    if(input$s_utils == "s_dsu" ){
-      util_df = s_ref_df
-      utils = "co"
-    }
-    
-    if(input$s_utils == "s_dsu_2014" ){
-      util_df = s_ref_df
-      utils = "dsu_2014"
-    }
-    
+    utils = switch(input$s_utils,
+                   "d_mvh" = "tto",
+                   "d_vanHout" = "cw",
+                   "d_tto" = "tto",
+                   "d_dsu" = "co",
+                   "d_dsu_2014" = "dsu_2014",
+                   "cw"
+    )
     
     s_dat$res = compQale(
       ons_df = util_df,
@@ -994,72 +544,15 @@ server <- function(input, output, session) {
     )
     
     s_dat$shortfall_abs = s_dat$res$Qx[1] - input$s_remaining_qalys
-    
     s_dat$shortfall_prop = s_dat$shortfall_abs / s_dat$res$Qx[1]
-    
-    
-    s_dat$q_weight = ifelse(
-      s_dat$shortfall_prop >= 0.95 | s_dat$shortfall_abs >= 18,
-      1.7,
-      ifelse(s_dat$shortfall_prop >= 0.85 | s_dat$shortfall_abs >= 12,
-             1.2,
-             1)
+    s_dat$q_weight = ifelse(s_dat$shortfall_prop >= 0.95 | s_dat$shortfall_abs >= 18, 1.7,
+                            ifelse(s_dat$shortfall_prop >= 0.85 | s_dat$shortfall_abs >= 12, 1.2, 1)
     )
   })
   
   # absolute shortfall highchart
   highchart_s_as <- reactive({
-    if (s_dat$shortfall_abs < 0) {
-      p_error <- highchart() %>%
-        hc_title(
-          text = "Error: QALYs must be lower with the disease.",
-          align = "center",
-          x = -10,
-          verticalAlign = 'middle',
-          floating = TRUE,
-          style = list(
-            fontSize = "16px",
-            color = "#7cb5ec"
-          )
-        )
-      return(p_error)
-    } else {
-      short_fall <- data.frame(
-        name = c("QALYs with disease", "Absolute shortfall", "QALYs without disease"),
-        value = c(input$s_remaining_qalys, s_dat$shortfall_abs, max(s_dat$res$Qx[1])),
-        color = c("#7cb5ec", "#6d757d", "#3e6386"),
-        a = c(FALSE, FALSE, TRUE)
-      )
-      
-      shortfall_str <- paste0("Absolute QALY shortfall:<b>", round(s_dat$shortfall_abs, 2), "</b>")
-      
-      p1 <- highchart() %>%
-        hc_add_series(
-          data = short_fall, "waterfall",
-          pointPadding = "0",
-          hcaes(
-            name = name,
-            y = value,
-            isSum = a,
-            color = color
-          ),
-          name = "QALYs"
-        ) %>%
-        hc_chart(
-          style = list(
-            fontFamily = "Inter"
-          )
-        ) %>%
-        hc_tooltip(
-          valueDecimals = 2
-        ) %>%
-        hc_xAxis(
-          categories = short_fall$name
-        ) %>%
-        hc_boost(enabled = FALSE)
-      
-      return(p1)
-    }
+    create_highchart_as(s_dat, input$s_remaining_qalys, "#7cb5ec")
   })
   
   # proportional shortfall highchart ----
@@ -1220,7 +713,6 @@ server <- function(input, output, session) {
   output$f_hc_cs = renderHighchart({highchart_f_cs()})
   output$n_hc_cs = renderHighchart({highchart_n_cs()})
   output$s_hc_cs = renderHighchart({highchart_s_cs()})
-  
   
 }
 
